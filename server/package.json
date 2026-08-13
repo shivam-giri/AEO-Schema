@@ -1,0 +1,16 @@
+{
+  "name": "aeo-server",
+  "version": "1.0.0",
+  "description": "Express proxy server for AEO Schema Generator",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "node-fetch": "^2.7.0"
+  }
+}
