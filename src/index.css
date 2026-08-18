@@ -1780,3 +1780,128 @@ body {
   color: var(--text-secondary);
   max-width: 500px;
 }
+
+/* ============================================================
+   Documentation Page Elements
+   ============================================================ */
+.pipeline-flow-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 900px) {
+  .pipeline-flow-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 580px) {
+  .pipeline-flow-grid { grid-template-columns: 1fr; }
+}
+
+.pipeline-step-card {
+  background: var(--gradient-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-6);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pipeline-step-num {
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--accent-primary);
+  opacity: 0.8;
+  font-family: var(--font-mono);
+}
+
+.pipeline-step-content h3 {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.pipeline-step-content p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* Module breakdown list */
+.doc-module-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.doc-module-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.doc-module-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.doc-module-badge {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent-primary);
+  background: rgba(139, 92, 246, 0.15);
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+}
+
+.doc-module-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.doc-code-block {
+  background: #090c14;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: #a78bfa;
+  overflow-x: auto;
+}
+
+/* Documentation FAQ Grid */
+.doc-faq-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 768px) {
+  .doc-faq-grid { grid-template-columns: 1fr; }
+}
+
+.doc-faq-card h4 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-2);
+}
+
+.doc-faq-card p {
+  font-size: 14px;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
+
+.doc-faq-card a {
+  color: var(--text-accent);
+  text-decoration: underline;
+}

@@ -1,8 +1,14 @@
-import { Zap, BarChart3 } from 'lucide-react';
+import { Zap, BarChart3, BookOpen } from 'lucide-react';
 
 const ENGINES = ['Google SGE', 'Bing Copilot', 'Perplexity', 'ChatGPT'];
 
-export default function Hero({ onNavigateToScoringCriteria, onNavigateHome, currentView }) {
+export default function Hero({
+  onNavigateToScoringCriteria,
+  onNavigateToDocumentation,
+  onNavigateHome,
+  currentView,
+  showHeader = true,
+}) {
   return (
     <>
       {/* ── Navbar ────────────────────────────────────────── */}
@@ -14,6 +20,12 @@ export default function Hero({ onNavigateToScoringCriteria, onNavigateHome, curr
 
         <div className="navbar-right">
           <button
+            className={`navbar-link-btn ${currentView === 'documentation' ? 'active' : ''}`}
+            onClick={onNavigateToDocumentation}
+          >
+            <BookOpen size={14} /> How It Works
+          </button>
+          <button
             className={`navbar-link-btn ${currentView === 'scoring-criteria' ? 'active' : ''}`}
             onClick={onNavigateToScoringCriteria}
           >
@@ -22,8 +34,8 @@ export default function Hero({ onNavigateToScoringCriteria, onNavigateHome, curr
         </div>
       </nav>
 
-      {/* ── Hero (Only show on home view) ──────────────────── */}
-      {currentView === 'home' && (
+      {/* ── Hero (Only show on home view when showHeader is true) ── */}
+      {currentView === 'home' && showHeader && (
         <header className="hero">
           <h1 className="hero-title">
             Generate{' '}
@@ -34,20 +46,16 @@ export default function Hero({ onNavigateToScoringCriteria, onNavigateHome, curr
             Paste any website URL — get structured JSON-LD schemas or a full AEO audit with recommendations, optimised for AI-powered answer engines.
           </p>
 
-        <div className="navbar-engines">
-          {ENGINES.map(engine => (
-            <span key={engine} className="engine-pill">
-              <span className="engine-pill-dot" />
-              {engine}
-            </span>
-          ))}
-        </div>
-
+          <div className="navbar-engines">
+            {ENGINES.map(engine => (
+              <span key={engine} className="engine-pill">
+                <span className="engine-pill-dot" />
+                {engine}
+              </span>
+            ))}
+          </div>
         </header>
       )}
-
-
-
     </>
   );
 }

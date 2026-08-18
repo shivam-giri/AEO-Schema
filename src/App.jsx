@@ -6,6 +6,7 @@ import AnalysisLoader from './components/AnalysisLoader.jsx';
 import ResultsPanel from './components/ResultsPanel.jsx';
 import AuditReport from './components/AuditReport.jsx';
 import ScoringCriteriaPage from './components/ScoringCriteriaPage.jsx';
+import DocumentationPage from './components/DocumentationPage.jsx';
 import { fetchPageHTML } from './services/fetcher.js';
 import { generateAEOSchemas } from './services/schemaGenerator.js';
 import { runFullAudit } from './services/auditAnalyzer.js';
@@ -19,9 +20,11 @@ const STEP_DELAYS = {
 
 export default function App() {
   const [currentView, setCurrentView] = useState(() => {
-    return window.location.hash === '#scoring-criteria' || window.location.pathname === '/scoring-criteria'
-      ? 'scoring-criteria'
-      : 'home';
+    const hash = window.location.hash;
+    const path = window.location.pathname;
+    if (hash === '#documentation' || path === '/documentation') return 'documentation';
+    if (hash === '#scoring-criteria' || path === '/scoring-criteria') return 'scoring-criteria';
+    return 'home';
   });
 
   const [mode, setMode] = useState('schema');             // 'schema' | 'audit'
@@ -36,7 +39,11 @@ export default function App() {
   // Handle hash / URL route changes
   useEffect(() => {
     const handleHashChange = () => {
-      if (window.location.hash === '#scoring-criteria' || window.location.pathname === '/scoring-criteria') {
+      const hash = window.location.hash;
+      const path = window.location.pathname;
+      if (hash === '#documentation' || path === '/documentation') {
+        setCurrentView('documentation');
+      } else if (hash === '#scoring-criteria' || path === '/scoring-criteria') {
         setCurrentView('scoring-criteria');
       } else {
         setCurrentView('home');
@@ -49,6 +56,11 @@ export default function App() {
       window.removeEventListener('hashchange', handleHashChange);
       window.removeEventListener('popstate', handleHashChange);
     };
+  }, []);
+
+  const navigateToDocumentation = useCallback(() => {
+    setCurrentView('documentation');
+    window.history.pushState({}, '', '#documentation');
   }, []);
 
   const navigateToScoringCriteria = useCallback(() => {
@@ -135,18 +147,24 @@ export default function App() {
       <div className="app-content">
         <Hero
           onNavigateToScoringCriteria={navigateToScoringCriteria}
+          onNavigateToDocumentation={navigateToDocumentation}
           onNavigateHome={navigateHome}
           currentView={currentView}
+          showHeader={state !== 'results'}
         />
 
-        {currentView === 'scoring-criteria' ? (
+        {currentView === 'documentation' ? (
+          <DocumentationPage onBack={navigateHome} />
+        ) : currentView === 'scoring-criteria' ? (
           <ScoringCriteriaPage onBack={navigateHome} />
         ) : (
           <>
-            {/* Mode selector — always visible except during loading/results */}
-            <div className="mode-selector-wrap">
-              <ModeSelector mode={mode} onChange={handleModeChange} />
-            </div>
+            {/* Mode selector — visible when not viewing results */}
+            {state !== 'results' && (
+              <div className="mode-selector-wrap">
+                <ModeSelector mode={mode} onChange={handleModeChange} />
+              </div>
+            )}
 
             {/* URL Input with Page Type Selector */}
             {showInput && (
@@ -207,7 +225,7 @@ export default function App() {
             AEO Schema Generator — Validate schemas at{' '}
             <a href="https://search.google.com/test/rich-results" target="_blank" rel="noopener noreferrer">
               Google Rich Results Test
-            </a> · View <a href="#scoring-criteria" onClick={navigateToScoringCriteria}>Scoring Criteria</a>.
+            </a> · <a href="#documentation" onClick={navigateToDocumentation}>How It Works</a> · <a href="#scoring-criteria" onClick={navigateToScoringCriteria}>Scoring Criteria</a>.
           </p>
         </footer>
       </div>
