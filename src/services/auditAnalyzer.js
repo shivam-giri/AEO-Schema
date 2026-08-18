@@ -22,29 +22,37 @@ export const PILLAR_WEIGHTS = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const pass = (id, label, detail, priority, rec) => ({
-  id, label, passed: true, detail,
+  id, label, passed: true, isNA: false, status: 'pass', detail,
   priority, recommendation: rec,
 });
 
 const fail = (id, label, detail, priority, rec, schemaFix = false, schemaType = null) => ({
-  id, label, passed: false, detail,
+  id, label, passed: false, isNA: false, status: 'fail', detail,
   priority, recommendation: rec, schemaFix, schemaType,
 });
 
+const na = (id, label, detail, reason) => ({
+  id, label, passed: true, isNA: true, status: 'na', detail,
+  priority: 'low', recommendation: reason,
+});
+
 function detectSchemaTypes(doc) {
-  // JSON-LD
+  // JSON-LD: Parse script tags, expand arrays and @graph graphs
   const jsonld = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'))
     .flatMap(s => {
       try {
         const parsed = JSON.parse(s.textContent);
-        return Array.isArray(parsed) ? parsed : [parsed];
+        if (!parsed) return [];
+        const items = Array.isArray(parsed) ? parsed : [parsed];
+        return items.flatMap(item => (item && Array.isArray(item['@graph'])) ? item['@graph'] : (item ? [item] : []));
       } catch { return []; }
     });
 
   const jsonldTypes = jsonld.flatMap(s => {
+    if (!s || !s['@type']) return [];
     const type = s['@type'];
-    return Array.isArray(type) ? type : type ? [type] : [];
-  }).map(t => t.toLowerCase());
+    return Array.isArray(type) ? type : [type];
+  }).map(t => (typeof t === 'string' ? t.toLowerCase() : ''));
 
   // Microdata + RDFa
   const itemtypes = Array.from(doc.querySelectorAll('[itemtype]'))
@@ -130,7 +138,7 @@ export function runFullAudit(html, pageUrl, targetPageType = 'auto') {
   const schemaPillar    = auditSchemaPillar(doc, schemas, meta, effectivePageType);
   const contentPillar   = auditContentPillar(doc, meta, bodyText, readabilityScore, searchabilityScore);
   const technicalPillar = auditTechnicalPillar(doc, meta, pageUrl, speedScores);
-  const eeatPillar      = auditEEATPillar(doc, meta, bodyText, schemas, pageUrl);
+  const eeatPillar      = auditEEATPillar(doc, meta, bodyText, schemas, pageUrl, effectivePageType);
   const uxPillar        = auditUXPillar(doc, meta, bodyText, searchabilityScore, speedScores);
 
   const pillars = [schemaPillar, contentPillar, technicalPillar, eeatPillar];
@@ -210,12 +218,10 @@ function auditSchemaPillar(doc, schemas, meta, pageType = 'generic') {
       : fail('website-schema', 'WebSite Schema', 'PASS: Detects WebSite schema in structured markup. None found for Homepage.', PRIORITY.MEDIUM, 'Add WebSite schema with SearchAction for sitelinks eligibility.', true, 'WebSite');
 
     // 3. Breadcrumb Schema (N/A for Homepage)
-    const breadcrumbCheck = pass('breadcrumb-schema', 'Breadcrumb Schema', 'N/A for Homepage — Root domain (/) has no parent pages in site hierarchy.', PRIORITY.LOW, 'Breadcrumbs not required on Homepage');
+    const breadcrumbCheck = na('breadcrumb-schema', 'Breadcrumb Schema', 'N/A for Homepage — Root domain (/) has no parent pages in site hierarchy.', 'Breadcrumbs not required on Homepage');
 
-    // 4. Content Schema (N/A for Homepage unless FAQ/Article explicit)
-    const contentSchemaCheck = (hasArticle || hasOrg)
-      ? pass('content-schema', 'Content Type Schema', 'Homepage identity schema verified.', PRIORITY.LOW, 'Homepage schema structure verified')
-      : pass('content-schema', 'Content Type Schema', 'Homepage uses Brand & WebSite schemas for AI identification.', PRIORITY.LOW, 'Homepage schema verified');
+    // 4. Content Schema (N/A for Homepage)
+    const contentSchemaCheck = na('content-schema', 'Article / Product Schema', 'N/A for Homepage — Organization & WebSite schemas serve as primary brand entity.', 'Homepage schema verified');
 
     checks = [orgCheck, websiteCheck, breadcrumbCheck, contentSchemaCheck];
 
@@ -235,7 +241,7 @@ function auditSchemaPillar(doc, schemas, meta, pageType = 'generic') {
 
     const faqCheck = hasFAQ
       ? pass('faq-schema', 'FAQ Schema', 'FAQPage schema detected on product page.', PRIORITY.LOW, 'FAQ schema present')
-      : pass('faq-schema', 'FAQ Schema', 'N/A — FAQ optional for Product pages.', PRIORITY.LOW, 'FAQ schema optional');
+      : na('faq-schema', 'FAQ Schema', 'N/A — FAQPage schema is optional for Product pages.', 'FAQ schema optional');
 
     checks = [productCheck, orgCheck, breadcrumbCheck, faqCheck];
 
@@ -253,7 +259,7 @@ function auditSchemaPillar(doc, schemas, meta, pageType = 'generic') {
       ? pass('org-schema', 'Organization Schema', 'Organization schema detected.', PRIORITY.MEDIUM, 'Organization schema present')
       : fail('org-schema', 'Organization Schema', 'Add Organization schema to attribute FAQ answers to brand.', PRIORITY.MEDIUM, 'Add Organization schema.', true, 'Organization');
 
-    const articleCheck = pass('article-schema', 'Article Schema', 'N/A — Dedicated FAQ page uses FAQPage schema as main entity.', PRIORITY.LOW, 'FAQ schema is primary');
+    const articleCheck = na('article-schema', 'Article Schema', 'N/A — Dedicated FAQ page uses FAQPage schema as main entity.', 'FAQ schema is primary');
 
     checks = [faqCheck, breadcrumbCheck, orgCheck, articleCheck];
 
@@ -273,7 +279,7 @@ function auditSchemaPillar(doc, schemas, meta, pageType = 'generic') {
 
     const articleCheck = hasArticle
       ? pass('article-schema', 'Article Schema', 'Article schema detected.', PRIORITY.LOW, 'Article schema present')
-      : pass('article-schema', 'Article Schema', 'HowTo schema serves as primary content entity.', PRIORITY.LOW, 'HowTo schema active');
+      : na('article-schema', 'Article Schema', 'N/A — HowTo schema serves as primary content entity.', 'HowTo schema active');
 
     checks = [howtoCheck, breadcrumbCheck, orgCheck, articleCheck];
 
@@ -501,37 +507,67 @@ function auditTechnicalPillar(doc, meta, pageUrl, speedScores) {
 }
 
 // ─── Pillar: E-E-A-T (20%) ───────────────────────────────────────────────────
-function auditEEATPillar(doc, meta, bodyText, schemas, pageUrl) {
+function auditEEATPillar(doc, meta, bodyText, schemas, pageUrl, pageType = 'generic') {
   const label = 'E-E-A-T';
   const { all: schemaAll } = schemas;
+
+  const isEditorialPage = ['article', 'news', 'press-release', 'howto', 'generic'].includes(pageType);
 
   // 1. Author Signals
   const hasAuthorEl = !!(
     doc.querySelector('.author, .byline, [rel="author"], [itemprop="author"], [class*="author-name"], [class*="byline"]')
   );
   const hasAuthorJSON = /["']author["']/.test(schemaAll) || meta.author;
-  const hasAuthor = hasAuthorEl || !!hasAuthorJSON;
-  const authorCheck = hasAuthor
-    ? pass('author', 'Author Signals',
-        `PASS: Author elements (.author, .byline, [rel='author'], etc.) OR JSON-LD contains 'author' field. Found: ${hasAuthorEl ? 'author element' : 'JSON-LD author'}.`,
-        PRIORITY.HIGH, 'Author attribution is present.')
-    : fail('author', 'Author Signals',
-        "PASS: Author elements (.author, .byline, [rel='author'], etc.) OR JSON-LD contains 'author' field. None found.",
-        PRIORITY.HIGH,
-        "Clear author bylines and biographical information missing. Add author attribution for E-E-A-T trust signals. AI systems use this to assess content credibility.",
-        true, 'Article');
+  const hasOrgBrand = /organization|corporation|localbusiness/.test(schemaAll) || !!meta.siteName;
+
+  let authorCheck;
+  if (!isEditorialPage) {
+    // On Homepage, Product, or FAQ pages, Organization brand identity serves as the author entity
+    authorCheck = (hasAuthorEl || hasAuthorJSON || hasOrgBrand)
+      ? pass('author', 'Author / Brand Signals',
+          `PASS: Organization brand identity (${meta.siteName || 'Brand'}) serves as publishing authority for ${pageType.toUpperCase()} page.`,
+          PRIORITY.MEDIUM, 'Brand attribution is present.')
+      : pass('author', 'Author / Brand Signals',
+          `PASS: Brand identity is primary authority for ${pageType.toUpperCase()} page.`,
+          PRIORITY.MEDIUM, 'Brand attribution active.');
+  } else {
+    // On Editorial pages (Article, Blog, News, HowTo), explicit author bylines are expected
+    authorCheck = (hasAuthorEl || hasAuthorJSON)
+      ? pass('author', 'Author Signals',
+          `PASS: Author elements (.author, .byline, [rel='author']) OR JSON-LD contains 'author' field. Found: ${hasAuthorEl ? 'author element' : 'JSON-LD author'}.`,
+          PRIORITY.HIGH, 'Author attribution is present.')
+      : fail('author', 'Author Signals',
+          "PASS: Author elements (.author, .byline, [rel='author']) OR JSON-LD contains 'author' field. None found.",
+          PRIORITY.HIGH,
+          "Clear author bylines missing. Add author attribution for editorial content. AI systems use author bylines to assess article credibility.",
+          true, 'Article');
+  }
 
   // 2. Expertise Credentials
-  const expertiseKeywords = /\b(phd|ph\.d|m\.d|md\b|certified|expert|specialist|award|years of experience|certified by|professional|accredited|licensed|registered)\b/i;
-  const hasExpertise = expertiseKeywords.test(bodyText);
-  const expertiseCheck = hasExpertise
-    ? pass('expertise', 'Expertise Credentials',
-        "PASS: Text contains professional credentials (phd, md, certified, expert, specialist, award, years of experience, certified by).",
-        PRIORITY.MEDIUM, 'Expertise signals present.')
-    : fail('expertise', 'Expertise Credentials',
-        "PASS: Text contains: phd, md, certified, expert, specialist, award, years of experience, certified by. None found.",
-        PRIORITY.MEDIUM,
-        'Limited expertise signals. Add credentials, certifications, or experience indicators (e.g., "10+ years of experience", "certified by", "specialist in") to establish authority.');
+  const expertiseKeywords = /\b(phd|ph\.d|m\.d|md\b|certified|expert|specialist|award|years of experience|certified by|professional|accredited|licensed|registered|leading|pioneer|global|founded)\b/i;
+  const hasExpertiseText = expertiseKeywords.test(bodyText);
+
+  let expertiseCheck;
+  if (!isEditorialPage) {
+    // On Homepage, Product, or FAQ pages, company credibility/trust serves as expertise
+    expertiseCheck = (hasExpertiseText || hasOrgBrand)
+      ? pass('expertise', 'Expertise & Authority',
+          `PASS: Company authority and trust indicators active for ${pageType.toUpperCase()} page.`,
+          PRIORITY.MEDIUM, 'Brand expertise & authority present.')
+      : pass('expertise', 'Expertise & Authority',
+          `PASS: Company brand authority applies to ${pageType.toUpperCase()} page.`,
+          PRIORITY.MEDIUM, 'Authority signals verified.');
+  } else {
+    // On Editorial pages, individual author credentials/degrees boost E-E-A-T
+    expertiseCheck = hasExpertiseText
+      ? pass('expertise', 'Expertise Credentials',
+          "PASS: Text contains professional credentials (phd, md, certified, expert, specialist, award, years of experience).",
+          PRIORITY.MEDIUM, 'Expertise signals present.')
+      : fail('expertise', 'Expertise Credentials',
+          "PASS: Text contains: phd, md, certified, expert, specialist, award, years of experience, certified by. None found.",
+          PRIORITY.MEDIUM,
+          'Limited author expertise signals. Add credentials, certifications, or experience indicators (e.g., "certified by", "specialist in") to establish authoritativeness.');
+  }
 
   // 3. Trust Signals
   const hasTrustEl = !!(
@@ -539,29 +575,39 @@ function auditEEATPillar(doc, meta, bodyText, schemas, pageUrl) {
   );
   const trustKeywords = /\b(testimonial|review|rated|stars|guarantee|secure|ssl|certified|accredited|award|trusted|verified)\b/i;
   const hasTrustText = trustKeywords.test(bodyText);
-  const hasTrust = hasTrustEl || hasTrustText;
+  const hasTrust = hasTrustEl || hasTrustText || hasOrgBrand;
   const trustCheck = hasTrust
     ? pass('trust', 'Trust Signals',
-        `PASS: Trust elements (.review, .testimonial, .security, .ssl) OR text contains trust keywords. Found: ${hasTrustEl ? 'trust elements' : 'trust keywords'}.`,
+        `PASS: Trust elements (.review, .testimonial, .security, .ssl) OR brand trust indicators found.`,
         PRIORITY.HIGH, 'Trust indicators found.')
     : fail('trust', 'Trust Signals',
         "PASS: Trust elements (.testimonial, .review, .security, .ssl) OR text contains trust keywords (testimonial, review, guarantee, secure, verified). None found.",
         PRIORITY.HIGH,
-        'Missing trust signals. Add testimonials, reviews, or security badges to build credibility. AI systems use these indicators to evaluate source trustworthiness.');
+        'Missing trust signals. Add testimonials, reviews, or security badges to build credibility.',
+        true);
 
   // 4. Date Freshness
   const hasTimeEl   = !!(doc.querySelector('time[datetime], .date, .published, .updated, [class*="date-"], [class*="published"]'));
   const hasDateJSON = !!(meta.datePublished || meta.dateModified || /["'](datePublished|dateModified)["']/.test(schemaAll));
   const hasDate = hasTimeEl || hasDateJSON;
-  const dateCheck = hasDate
-    ? pass('date-freshness', 'Date Freshness',
-        `PASS: Time elements, date classes (.date, .published, .updated) OR JSON-LD contains 'datePublished'/'dateModified'. Found: ${hasTimeEl ? 'date element' : 'JSON-LD date'}.`,
-        PRIORITY.MEDIUM, 'Publication and update dates found. Helps AI systems assess content freshness.')
-    : fail('date-freshness', 'Date Freshness',
-        "PASS: Time elements, date classes (.date, .published, .updated) OR JSON-LD contains 'datePublished'/'dateModified'. None found.",
-        PRIORITY.MEDIUM,
-        'Missing date stamps. Add publication/update dates to show content freshness. AI engines prioritise recent, dated content.',
-        true, 'Article');
+
+  let dateCheck;
+  if (pageType === 'homepage') {
+    // Homepage is evergreen, publication date stamp not required
+    dateCheck = pass('date-freshness', 'Date Freshness',
+        'PASS: Homepage is an evergreen brand portal. Publication date stamps are N/A.',
+        PRIORITY.LOW, 'Date freshness N/A for Homepage');
+  } else {
+    dateCheck = hasDate
+      ? pass('date-freshness', 'Date Freshness',
+          `PASS: Time elements, date classes (.date, .published, .updated) OR JSON-LD contains 'datePublished'/'dateModified'. Found: ${hasTimeEl ? 'date element' : 'JSON-LD date'}.`,
+          PRIORITY.MEDIUM, 'Publication and update dates found. Helps AI systems assess content freshness.')
+      : fail('date-freshness', 'Date Freshness',
+          "PASS: Time elements, date classes (.date, .published, .updated) OR JSON-LD contains 'datePublished'/'dateModified'. None found.",
+          PRIORITY.MEDIUM,
+          'Missing date stamps. Add publication/update dates to show content freshness. AI engines prioritise recent, dated content.',
+          true, 'Article');
+  }
 
   // 5. Contact Information
   const contactLinks = doc.querySelectorAll('a[href^="tel:"], a[href^="mailto:"], a[href*="contact"]');

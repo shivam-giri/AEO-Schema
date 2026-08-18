@@ -282,41 +282,79 @@ export function checkHowToPatterns(doc) {
  * Extract organization info.
  */
 export function extractOrganization(doc, meta, pageUrl) {
+  // Inspect existing JSON-LD scripts for Organization/Corporation/LocalBusiness
+  const jsonLdScripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
+  let jsonLdOrg = null;
+
+  for (const s of jsonLdScripts) {
+    try {
+      const parsed = JSON.parse(s.textContent);
+      if (!parsed) continue;
+      const items = Array.isArray(parsed) ? parsed : [parsed];
+      const entities = items.flatMap(item => (item && Array.isArray(item['@graph'])) ? item['@graph'] : (item ? [item] : []));
+
+      jsonLdOrg = entities.find(e => {
+        if (!e || !e['@type']) return false;
+        const types = Array.isArray(e['@type']) ? e['@type'] : [e['@type']];
+        return types.some(t => typeof t === 'string' && /organization|corporation|localbusiness|business/i.test(t));
+      });
+
+      if (jsonLdOrg) break;
+    } catch { /* ignore */ }
+  }
+
   const name =
+    jsonLdOrg?.name ||
+    jsonLdOrg?.legalName ||
     meta.siteName ||
     getText(doc, '[itemprop="name"]') ||
     doc.title?.split(/[-|–]/).pop()?.trim() ||
     '';
 
   const logo =
+    (typeof jsonLdOrg?.logo === 'string' ? jsonLdOrg.logo : (jsonLdOrg?.logo?.url || jsonLdOrg?.logo?.contentUrl)) ||
     getAttr(doc, '[itemprop="logo"] img', 'src') ||
     getAttr(doc, 'img[src*="logo"]', 'src') ||
     getAttr(doc, 'img[alt*="logo" i]', 'src') ||
     '';
 
+  const jsonLdPhone = jsonLdOrg?.telephone || (Array.isArray(jsonLdOrg?.contactPoint) ? jsonLdOrg.contactPoint.find(c => c.telephone)?.telephone : jsonLdOrg?.contactPoint?.telephone);
   const phone =
+    jsonLdPhone ||
     getText(doc, '[itemprop="telephone"]') ||
     getAttr(doc, 'a[href^="tel:"]', 'href')?.replace('tel:', '') ||
     '';
 
   const email =
+    jsonLdOrg?.email ||
     getText(doc, '[itemprop="email"]') ||
     getAttr(doc, 'a[href^="mailto:"]', 'href')?.replace('mailto:', '') ||
     '';
 
+  const jsonLdAddr = typeof jsonLdOrg?.address === 'string'
+    ? jsonLdOrg.address
+    : jsonLdOrg?.address?.streetAddress
+      ? `${jsonLdOrg.address.streetAddress}${jsonLdOrg.address.addressLocality ? ', ' + jsonLdOrg.address.addressLocality : ''}`
+      : '';
+
   const address =
+    jsonLdAddr ||
     getText(doc, '[itemprop="address"]') ||
     getText(doc, '.address, [class*="address"]') ||
     '';
 
   // Social links
-  const socials = Array.from(doc.querySelectorAll('a[href*="twitter.com"], a[href*="linkedin.com"], a[href*="facebook.com"], a[href*="instagram.com"], a[href*="youtube.com"]'))
+  const domSocials = Array.from(doc.querySelectorAll('a[href*="twitter.com"], a[href*="linkedin.com"], a[href*="facebook.com"], a[href*="instagram.com"], a[href*="youtube.com"]'))
     .map(a => a.getAttribute('href'))
     .filter(href => href && href.startsWith('http'));
 
-  const origin = (() => { try { return new URL(pageUrl).origin; } catch { return pageUrl; } })();
+  const jsonLdSameAs = Array.isArray(jsonLdOrg?.sameAs) ? jsonLdOrg.sameAs : (jsonLdOrg?.sameAs ? [jsonLdOrg.sameAs] : []);
+  const socials = Array.from(new Set([...jsonLdSameAs, ...domSocials]));
 
-  return { name, logo, phone, email, address, socials, url: origin };
+  const origin = (() => { try { return new URL(pageUrl).origin; } catch { return pageUrl; } })();
+  const url = jsonLdOrg?.url || origin;
+
+  return { name, logo, phone, email, address, socials, url };
 }
 
 /**

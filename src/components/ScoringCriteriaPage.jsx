@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle2, ShieldCheck, Zap, Info, Layers, BarChart3, HelpCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, ShieldCheck, Zap, Info, Layers, BarChart3, HelpCircle, CheckCircle, XCircle, MinusCircle } from 'lucide-react';
 
 export default function ScoringCriteriaPage({ onBack }) {
   return (
@@ -54,7 +54,47 @@ export default function ScoringCriteriaPage({ onBack }) {
         </div>
       </section>
 
-      {/* ── Section 2: 4-Pillar Formula ────────────────────────── */}
+      {/* ── Section 2: Audit Status Badges ───────────────────── */}
+      <section className="scoring-section">
+        <h2 className="scoring-section-title">
+          <Info size={22} className="scoring-icon-accent" />
+          Understanding Audit Status Badges
+        </h2>
+        <p className="scoring-section-desc">
+          To ensure complete transparency, our audit engine uses 3 distinct status badges so you know exactly what was found versus what was excluded:
+        </p>
+
+        <div className="status-badges-grid">
+          <div className="status-badge-card pass-card">
+            <div className="status-badge-header">
+              <CheckCircle size={18} style={{ color: 'var(--accent-success)' }} />
+              <span className="status-pill pass-pill">PASS</span>
+            </div>
+            <h4>Present &amp; Validated</h4>
+            <p>This item was detected directly on your page HTML and meets all AEO standards.</p>
+          </div>
+
+          <div className="status-badge-card na-card">
+            <div className="status-badge-header">
+              <MinusCircle size={18} style={{ color: '#94a3b8' }} />
+              <span className="status-pill na-pill">N/A</span>
+            </div>
+            <h4>Not Applicable (0 Score Penalty)</h4>
+            <p>This item is excluded because it is not required for your selected Page Type (e.g. Breadcrumbs on Homepage).</p>
+          </div>
+
+          <div className="status-badge-card fail-card">
+            <div className="status-badge-header">
+              <XCircle size={18} style={{ color: 'var(--accent-danger)' }} />
+              <span className="status-pill fail-pill">FAIL</span>
+            </div>
+            <h4>Required &amp; Missing</h4>
+            <p>This item is required for your selected Page Type, but was missing or incomplete on your page.</p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Section 3: 4-Pillar Formula ────────────────────────── */}
       <section className="scoring-section">
         <h2 className="scoring-section-title">
           <Layers size={22} className="scoring-icon-accent" />
@@ -119,7 +159,7 @@ export default function ScoringCriteriaPage({ onBack }) {
         </div>
       </section>
 
-      {/* ── Section 3: Page Type vs Schema Matrix Table ──────── */}
+      {/* ── Section 4: Page Type vs Schema Matrix Table ──────── */}
       <section className="scoring-section">
         <h2 className="scoring-section-title">
           <ShieldCheck size={22} className="scoring-icon-accent" />
@@ -135,7 +175,7 @@ export default function ScoringCriteriaPage({ onBack }) {
               <tr>
                 <th>Page Type</th>
                 <th>🔍 Actively Audited (Required Schemas)</th>
-                <th>✅ Automatically Passed (N/A Schemas)</th>
+                <th>⚪ Excluded from Score (N/A Schemas)</th>
                 <th>Why It's Marked N/A (Non-Technical Explanation)</th>
               </tr>
             </thead>
@@ -151,9 +191,9 @@ export default function ScoringCriteriaPage({ onBack }) {
                   <span className="schema-pill required">WebSite</span>
                 </td>
                 <td>
-                  <span className="schema-pill pass-na">BreadcrumbList</span>
-                  <span className="schema-pill pass-na">Article</span>
-                  <span className="schema-pill pass-na">FAQPage</span>
+                  <span className="schema-pill pass-na">BreadcrumbList (N/A)</span>
+                  <span className="schema-pill pass-na">Article (N/A)</span>
+                  <span className="schema-pill pass-na">FAQPage (N/A)</span>
                 </td>
                 <td className="explanation-cell">
                   A Homepage is the main entry door (`/`) of your site. It has no parent pages, so <strong>Breadcrumb navigation is not required</strong>. Its job is to declare brand identity (`Organization` &amp; `WebSite`).
@@ -172,8 +212,8 @@ export default function ScoringCriteriaPage({ onBack }) {
                   <span className="schema-pill required">BreadcrumbList</span>
                 </td>
                 <td>
-                  <span className="schema-pill pass-na">Article</span>
-                  <span className="schema-pill pass-na">FAQPage</span>
+                  <span className="schema-pill pass-na">Article (N/A)</span>
+                  <span className="schema-pill pass-na">FAQPage (N/A)</span>
                 </td>
                 <td className="explanation-cell">
                   E-commerce item pages focus on price, availability, and category path. They use `Product` schema as their primary entity rather than blog article metadata.
@@ -192,8 +232,8 @@ export default function ScoringCriteriaPage({ onBack }) {
                   <span className="schema-pill required">BreadcrumbList</span>
                 </td>
                 <td>
-                  <span className="schema-pill pass-na">Article</span>
-                  <span className="schema-pill pass-na">Product</span>
+                  <span className="schema-pill pass-na">Article (N/A)</span>
+                  <span className="schema-pill pass-na">Product (N/A)</span>
                 </td>
                 <td className="explanation-cell">
                   Dedicated Q&amp;A pages provide direct answers for voice search and AI snippets. `FAQPage` schema is their main entity.
@@ -212,8 +252,8 @@ export default function ScoringCriteriaPage({ onBack }) {
                   <span className="schema-pill required">Organization</span>
                 </td>
                 <td>
-                  <span className="schema-pill pass-na">Product</span>
-                  <span className="schema-pill pass-na">FAQPage</span>
+                  <span className="schema-pill pass-na">Product (N/A)</span>
+                  <span className="schema-pill pass-na">FAQPage (N/A)</span>
                 </td>
                 <td className="explanation-cell">
                   Tutorials focus on step-by-step procedure execution. `HowTo` schema outlines the exact steps for AI assistants.
@@ -232,7 +272,7 @@ export default function ScoringCriteriaPage({ onBack }) {
                   <span className="schema-pill required">Organization</span>
                 </td>
                 <td>
-                  <span className="schema-pill pass-na">Product</span>
+                  <span className="schema-pill pass-na">Product (N/A)</span>
                 </td>
                 <td className="explanation-cell">
                   Blog posts and news articles require clear author bylines, publication dates, and hierarchy breadcrumbs for credibility.
@@ -254,7 +294,7 @@ export default function ScoringCriteriaPage({ onBack }) {
         </div>
       </section>
 
-      {/* ── Section 4: Score Grades & Thresholds ──────────────── */}
+      {/* ── Section 5: Score Grades & Thresholds ──────────────── */}
       <section className="scoring-section">
         <h2 className="scoring-section-title">
           <CheckCircle2 size={22} className="scoring-icon-accent" />

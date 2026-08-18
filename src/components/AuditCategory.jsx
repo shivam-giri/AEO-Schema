@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, CheckCircle, XCircle } from 'lucide-react';
+import { ChevronDown, CheckCircle, XCircle, MinusCircle } from 'lucide-react';
 import { PILLAR_WEIGHTS } from '../services/auditAnalyzer.js';
 
 function getBarColor(pct) {
@@ -52,7 +52,7 @@ export default function AuditCategory({ category, index, animated, isUX = false 
         </div>
 
         <div className="audit-category-score" style={{ color: barColor }}>
-          {category.checks.filter(c => c.passed).length}/{category.checks.length}
+          {category.checks.filter(c => c.passed && !c.isNA).length}/{category.checks.filter(c => !c.isNA).length || category.checks.length}
           <span className="audit-category-pct">{pct}%</span>
         </div>
 
@@ -64,35 +64,61 @@ export default function AuditCategory({ category, index, animated, isUX = false 
       {/* Check rows */}
       {open && (
         <div className="audit-category-body">
-          {category.checks.map(check => (
-            <div
-              key={check.id}
-              className={`audit-check-row ${check.passed ? 'status-pass' : 'status-fail'}`}
-            >
-              <span
-                className="audit-check-status-icon"
-                style={{ color: check.passed ? 'var(--accent-success)' : 'var(--accent-danger)' }}
-              >
-                {check.passed ? <CheckCircle size={14} /> : <XCircle size={14} />}
-              </span>
+          {category.checks.map(check => {
+            const isNA = check.isNA || check.status === 'na';
+            const isPass = check.passed && !isNA;
 
-              <div className="audit-check-info">
-                <span className="audit-check-label">{check.label}</span>
-                <span className="audit-check-detail">{check.detail}</span>
+            const iconColor = isNA
+              ? '#94a3b8'
+              : isPass
+                ? 'var(--accent-success)'
+                : 'var(--accent-danger)';
+
+            const badgeBg = isNA
+              ? 'rgba(148, 163, 184, 0.12)'
+              : isPass
+                ? 'rgba(16, 185, 129, 0.12)'
+                : 'rgba(239, 68, 68, 0.10)';
+
+            const badgeColor = isNA
+              ? '#94a3b8'
+              : isPass
+                ? 'var(--accent-success)'
+                : 'var(--accent-danger)';
+
+            const badgeBorder = isNA
+              ? '1px solid rgba(148, 163, 184, 0.25)'
+              : isPass
+                ? '1px solid rgba(16, 185, 129, 0.25)'
+                : '1px solid rgba(239, 68, 68, 0.25)';
+
+            return (
+              <div
+                key={check.id}
+                className={`audit-check-row ${isNA ? 'status-na' : isPass ? 'status-pass' : 'status-fail'}`}
+              >
+                <span className="audit-check-status-icon" style={{ color: iconColor }}>
+                  {isNA ? <MinusCircle size={14} /> : isPass ? <CheckCircle size={14} /> : <XCircle size={14} />}
+                </span>
+
+                <div className="audit-check-info">
+                  <span className="audit-check-label">{check.label}</span>
+                  <span className="audit-check-detail">{check.detail}</span>
+                </div>
+
+                <span
+                  className="audit-pass-fail-badge"
+                  style={{
+                    background: badgeBg,
+                    color: badgeColor,
+                    border: badgeBorder,
+                  }}
+                >
+                  {isNA ? 'N/A' : isPass ? 'PASS' : 'FAIL'}
+                </span>
               </div>
-
-              <span
-                className="audit-pass-fail-badge"
-                style={{
-                  background: check.passed ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.10)',
-                  color: check.passed ? 'var(--accent-success)' : 'var(--accent-danger)',
-                  border: `1px solid ${check.passed ? 'rgba(16,185,129,0.25)' : 'rgba(239,68,68,0.25)'}`,
-                }}
-              >
-                {check.passed ? 'PASS' : 'FAIL'}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
