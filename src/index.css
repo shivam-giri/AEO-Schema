@@ -16,16 +16,17 @@
   --color-border-hover: rgba(139, 92, 246, 0.4);
 
   /* Brand / Accent */
-  --accent-primary: #8b5cf6;
+  --accent-primary: #eb8144;
   --accent-secondary: #6366f1;
-  --accent-tertiary: #ec4899;
+  --accent-tertiary: #56e449;
   --accent-success: #10b981;
-  --accent-warning: #f59e0b;
+  --accent-warning: #58cbee;
   --accent-danger: #ef4444;
   --accent-info: #06b6d4;
 
   /* Gradients */
-  --gradient-hero: linear-gradient(135deg, #8b5cf6 0%, #6366f1 50%, #ec4899 100%);
+  --gradient-hero: linear-gradient(135deg, #eb8144 0%, #56e449 50%, #58cbee 100%);
+  --btn-gradient:  linear-gradient(135deg, #a74812 0%, #13770a 50%, #0e6681 100%);
   --gradient-card: linear-gradient(145deg, rgba(139, 92, 246, 0.08), rgba(99, 102, 241, 0.04));
   --gradient-glow: radial-gradient(ellipse at 50% 0%, rgba(139, 92, 246, 0.15) 0%, transparent 70%);
 
@@ -343,7 +344,7 @@ body {
   gap: var(--space-2);
   padding: var(--space-3) var(--space-6);
   border-radius: var(--radius-lg);
-  background: var(--gradient-hero);
+  background: var(--btn-gradient);
   border: none;
   color: white;
   font-family: var(--font-sans);
@@ -625,7 +626,7 @@ body {
   gap: var(--space-2);
   padding: 10px 20px;
   border-radius: var(--radius-md);
-  background: var(--gradient-hero);
+  background: var(--btn-gradient);
   border: none;
   color: white;
   font-family: var(--font-sans);
