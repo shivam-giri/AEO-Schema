@@ -3,6 +3,7 @@ import { RefreshCw, Download, Lightbulb, BarChart2, Info } from 'lucide-react';
 import AuditCategory from './AuditCategory.jsx';
 import RecommendationCard from './RecommendationCard.jsx';
 import { PRIORITY, PILLAR_WEIGHTS } from '../services/auditAnalyzer.js';
+import { exportAuditPDF } from '../utils/pdfExporter.js';
 
 const CIRCUMFERENCE = 2 * Math.PI * 52;
 
@@ -32,6 +33,7 @@ export default function AuditReport({ results, onReset, onSwitchToSchema }) {
   const {
     pillars, uxPillar, overallScore, grade, gradeClass,
     recommendations, meta, readabilityScore, searchabilityScore, speedScores,
+    pageType, selectedPageType, effectivePageType,
   } = results;
 
   const color  = getScoreColor(overallScore);
@@ -44,31 +46,20 @@ export default function AuditReport({ results, onReset, onSwitchToSchema }) {
   const totalCount = pillars.reduce((s, p) => s + p.checks.length, 0);
 
   const handleDownload = () => {
-    const lines = [
-      'AEO AUDIT REPORT — 4-Pillar Methodology',
-      `URL: ${meta.canonicalUrl || 'Unknown'}`,
-      `Generated: ${new Date().toLocaleDateString()}`,
-      '',
-      `Overall Score: ${overallScore}/100 — ${grade}`,
-      `Formula: Schema(30%) + Content(25%) + Technical(25%) + E-E-A-T(20%)`,
-      '',
-      '=== PILLAR SCORES ===',
-      ...pillars.map(p =>
-        `${p.emoji} ${p.label} [${p.pct}]: ${p.score}% — ${p.checks.filter(c => c.passed).length}/${p.checks.length} checks passed`
-      ),
-      '',
-      `📱 UX [separate]: ${uxPillar.score}% — ${uxPillar.checks.filter(c => c.passed).length}/${uxPillar.checks.length} checks passed`,
-      '',
-      '=== RECOMMENDATIONS ===',
-      ...recommendations.map((r, i) =>
-        `${i + 1}. [${r.priority.toUpperCase()}] ${r.title}\n   ${r.description}`
-      ),
-    ];
-    const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url; a.download = 'aeo-audit-report.txt'; a.click();
-    URL.revokeObjectURL(url);
+    try {
+      exportAuditPDF({
+        overallScore,
+        grade,
+        meta,
+        pageType: effectivePageType || pageType,
+        selectedPageType,
+        pillars,
+        recommendations,
+        uxPillar,
+      });
+    } catch (err) {
+      console.error('[AEO Studio] Error generating PDF:', err);
+    }
   };
 
   const shortUrl = (() => {
@@ -89,7 +80,7 @@ export default function AuditReport({ results, onReset, onSwitchToSchema }) {
         </div>
         <div className="results-actions">
           <button className="btn-secondary" onClick={onReset}><RefreshCw size={14} /> New Analysis</button>
-          <button className="btn-secondary" onClick={handleDownload}><Download size={14} /> Report</button>
+          <button className="btn-secondary" onClick={handleDownload}><Download size={14} /> PDF Report</button>
           <button className="btn-primary" onClick={onSwitchToSchema}>⚡ Generate Schemas</button>
         </div>
       </div>

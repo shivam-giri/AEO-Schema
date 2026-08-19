@@ -186,6 +186,8 @@ export function runFullAudit(html, pageUrl, targetPageType = 'auto') {
     readabilityScore,
     searchabilityScore,
     speedScores,
+    pageType: effectivePageType,
+    selectedPageType: targetPageType,
     effectivePageType,
   };
 }
