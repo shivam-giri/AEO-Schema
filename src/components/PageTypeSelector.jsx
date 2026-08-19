@@ -1,12 +1,13 @@
-import { Sparkles, Home, FileText, ShoppingBag, HelpCircle, ListOrdered } from 'lucide-react';
+import { Sparkles, Home, FileText, Newspaper, PhoneCall, Users, HelpCircle } from 'lucide-react';
 
 export const PAGE_TYPES = [
-  { id: 'auto',     label: 'Auto-Detect',     icon: Sparkles,    desc: 'Smart DOM & URL detection' },
-  { id: 'homepage', label: 'Homepage',        icon: Home,        desc: 'Brand identity & WebSite' },
-  { id: 'article',  label: 'Article / Blog',  icon: FileText,    desc: 'Editorial & publication' },
-  { id: 'product',  label: 'Product Page',    icon: ShoppingBag, desc: 'E-commerce & pricing' },
-  { id: 'faq',      label: 'FAQ Page',        icon: HelpCircle,  desc: 'Q&A & voice search' },
-  { id: 'howto',    label: 'HowTo Guide',     icon: ListOrdered, desc: 'Step-by-step tutorial' },
+  { id: 'auto',       label: 'Auto-Detect',       icon: Sparkles,   desc: 'Smart DOM & URL detection' },
+  { id: 'homepage',   label: 'Homepage',          icon: Home,       desc: 'Brand identity & WebSite' },
+  { id: 'article',    label: 'Article / Blog',    icon: FileText,   desc: 'Editorial & publication' },
+  { id: 'news-media', label: 'News & Media',      icon: Newspaper,  desc: 'Press releases & news' },
+  { id: 'contact-us', label: 'Contact Us',        icon: PhoneCall,  desc: 'Location & contact info' },
+  { id: 'bod',        label: 'Board of Directors',icon: Users,      desc: 'Leadership & Person profiles' },
+  { id: 'faq',        label: 'FAQ Page',          icon: HelpCircle, desc: 'Q&A & voice search' },
 ];
 
 export default function PageTypeSelector({ selectedType, onChange, disabled }) {

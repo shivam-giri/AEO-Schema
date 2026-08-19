@@ -203,12 +203,50 @@ export default function ScoringCriteriaPage({ onBack }) {
               <tr>
                 <td>
                   <div className="page-type-cell">
-                    <span>🛍️</span> <strong>Product Page</strong>
+                    <span>📰</span> <strong>Article / Blog</strong>
                   </div>
                 </td>
                 <td>
-                  <span className="schema-pill required">Product</span>
-                  <span className="schema-pill required">Offer / Price</span>
+                  <span className="schema-pill required">Article</span>
+                  <span className="schema-pill required">BreadcrumbList</span>
+                  <span className="schema-pill required">Organization</span>
+                </td>
+                <td>
+                  <span className="schema-pill pass-na">FAQPage (N/A)</span>
+                </td>
+                <td className="explanation-cell">
+                  Blog posts and editorial articles require clear author bylines, publication dates, and hierarchy breadcrumbs for credibility.
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  <div className="page-type-cell">
+                    <span>📺</span> <strong>News &amp; Media</strong>
+                  </div>
+                </td>
+                <td>
+                  <span className="schema-pill required">NewsArticle</span>
+                  <span className="schema-pill required">Organization</span>
+                  <span className="schema-pill required">BreadcrumbList</span>
+                </td>
+                <td>
+                  <span className="schema-pill pass-na">FAQPage (N/A)</span>
+                </td>
+                <td className="explanation-cell">
+                  Press releases and corporate announcements focus on publication date, publisher authority, and datelines for Google News &amp; AI crawlers.
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  <div className="page-type-cell">
+                    <span>📞</span> <strong>Contact Us</strong>
+                  </div>
+                </td>
+                <td>
+                  <span className="schema-pill required">ContactPage</span>
+                  <span className="schema-pill required">Organization</span>
                   <span className="schema-pill required">BreadcrumbList</span>
                 </td>
                 <td>
@@ -216,7 +254,26 @@ export default function ScoringCriteriaPage({ onBack }) {
                   <span className="schema-pill pass-na">FAQPage (N/A)</span>
                 </td>
                 <td className="explanation-cell">
-                  E-commerce item pages focus on price, availability, and category path. They use `Product` schema as their primary entity rather than blog article metadata.
+                  Corporate contact pages prioritize verified phone numbers, email, headquarters address (`ContactPoint`), and social profiles (`sameAs`).
+                </td>
+              </tr>
+
+              <tr>
+                <td>
+                  <div className="page-type-cell">
+                    <span>👔</span> <strong>Board of Directors (BOD)</strong>
+                  </div>
+                </td>
+                <td>
+                  <span className="schema-pill required">Person List (ItemList)</span>
+                  <span className="schema-pill required">Organization</span>
+                  <span className="schema-pill required">BreadcrumbList</span>
+                </td>
+                <td>
+                  <span className="schema-pill pass-na">Article (N/A)</span>
+                </td>
+                <td className="explanation-cell">
+                  Leadership and governance pages define structured `Person` profiles (name, jobTitle, worksFor) establishing high corporate E-E-A-T.
                 </td>
               </tr>
 
@@ -233,49 +290,9 @@ export default function ScoringCriteriaPage({ onBack }) {
                 </td>
                 <td>
                   <span className="schema-pill pass-na">Article (N/A)</span>
-                  <span className="schema-pill pass-na">Product (N/A)</span>
                 </td>
                 <td className="explanation-cell">
                   Dedicated Q&amp;A pages provide direct answers for voice search and AI snippets. `FAQPage` schema is their main entity.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  <div className="page-type-cell">
-                    <span>📝</span> <strong>HowTo Guide</strong>
-                  </div>
-                </td>
-                <td>
-                  <span className="schema-pill required">HowTo / Steps</span>
-                  <span className="schema-pill required">BreadcrumbList</span>
-                  <span className="schema-pill required">Organization</span>
-                </td>
-                <td>
-                  <span className="schema-pill pass-na">Product (N/A)</span>
-                  <span className="schema-pill pass-na">FAQPage (N/A)</span>
-                </td>
-                <td className="explanation-cell">
-                  Tutorials focus on step-by-step procedure execution. `HowTo` schema outlines the exact steps for AI assistants.
-                </td>
-              </tr>
-
-              <tr>
-                <td>
-                  <div className="page-type-cell">
-                    <span>📰</span> <strong>Article / Blog</strong>
-                  </div>
-                </td>
-                <td>
-                  <span className="schema-pill required">Article</span>
-                  <span className="schema-pill required">BreadcrumbList</span>
-                  <span className="schema-pill required">Organization</span>
-                </td>
-                <td>
-                  <span className="schema-pill pass-na">Product (N/A)</span>
-                </td>
-                <td className="explanation-cell">
-                  Blog posts and news articles require clear author bylines, publication dates, and hierarchy breadcrumbs for credibility.
                 </td>
               </tr>
 
@@ -286,7 +303,7 @@ export default function ScoringCriteriaPage({ onBack }) {
                   </div>
                 </td>
                 <td colSpan="3" className="explanation-cell">
-                  Automatically inspects HTML meta tags, DOM containers (<code>&lt;article&gt;</code>, <code>.price</code>, <code>&lt;details&gt;</code>), and URL path to select the optimal rule set above.
+                  Automatically inspects HTML meta tags, DOM containers (<code>&lt;article&gt;</code>, <code>.director</code>, <code>.contact-form</code>), and URL path to select the optimal rule set above.
                 </td>
               </tr>
             </tbody>

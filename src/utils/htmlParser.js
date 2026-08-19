@@ -119,23 +119,35 @@ export function extractMeta(doc, pageUrl) {
  */
 export function detectPageType(doc, meta) {
   const ogType = meta.type.toLowerCase();
+  const url = meta.canonicalUrl.toLowerCase();
 
   // Check og:type
   if (ogType === 'article') return 'article';
-  if (ogType === 'product') return 'product';
 
-  // Check URL structure
-  const url = meta.canonicalUrl.toLowerCase();
-  const isHomepage = url.endsWith('/') || /\.(com|org|net|io|co)$/.test(url.replace(/https?:\/\//, '').split('/')[0]);
+  // Check URL path patterns
+  if (/(news|media|press-release|press|announcements)/i.test(url)) return 'news-media';
+  if (/(contact|contact-us|get-in-touch|reach-us)/i.test(url)) return 'contact-us';
+  if (/(board|directors|leadership|governance|management|executive-team)/i.test(url)) return 'bod';
 
   // Check content signals
   const body = doc.body?.textContent?.toLowerCase() || '';
-  const headings = getAllText(doc, 'h1,h2,h3');
+
+  const hasNewsSignals = !!(
+    doc.querySelector('.press-release, .news-item, .media-release, [class*="press-release"]') ||
+    /\b(press release|media contact|for immediate release)\b/i.test(body)
+  );
+
+  const hasContactSignals = !!(
+    doc.querySelector('.contact-form, [action*="contact"]') &&
+    /\b(contact us|get in touch|headquarters|office address)\b/i.test(body)
+  );
+
+  const hasBODSignals = !!(
+    doc.querySelector('.director, .board-member, .leadership-team, [class*="director"]') ||
+    /\b(board of directors|executive committee|leadership team|board member)\b/i.test(body)
+  );
 
   const hasFAQPatterns = checkFAQPatterns(doc);
-  const hasHowToPatterns = checkHowToPatterns(doc);
-  const hasSteps = hasHowToPatterns;
-
   const hasArticleSignals = !!(
     doc.querySelector('article') ||
     doc.querySelector('[itemprop="articleBody"]') ||
@@ -144,18 +156,11 @@ export function detectPageType(doc, meta) {
     meta.author
   );
 
-  const hasProductSignals = !!(
-    doc.querySelector('[itemprop="Product"]') ||
-    doc.querySelector('[typeof="Product"]') ||
-    doc.querySelector('.price, .product-price, [class*="price"]') ||
-    body.includes('add to cart') ||
-    body.includes('buy now')
-  );
-
+  if (hasNewsSignals) return 'news-media';
+  if (hasContactSignals) return 'contact-us';
+  if (hasBODSignals) return 'bod';
   if (hasFAQPatterns.found) return 'faq';
-  if (hasSteps) return 'howto';
   if (hasArticleSignals) return 'article';
-  if (hasProductSignals) return 'product';
 
   const path = url.split('//')[1]?.split('/').slice(1).join('/') || '';
   if (!path || path === '' || path === 'index.html') return 'homepage';

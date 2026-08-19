@@ -225,25 +225,51 @@ function auditSchemaPillar(doc, schemas, meta, pageType = 'generic') {
 
     checks = [orgCheck, websiteCheck, breadcrumbCheck, contentSchemaCheck];
 
-  } else if (pageType === 'product') {
-    // ── Product Page Targeted Checks ──────────────────────────────────────
-    const productCheck = hasProduct
-      ? pass('product-schema', 'Product Schema', 'Product / E-commerce schema detected — enables rich shopping results.', PRIORITY.HIGH, 'Product schema present')
-      : fail('product-schema', 'Product Schema', 'PASS: Detects Product or Offer in structured markup. None found.', PRIORITY.HIGH, 'Add Product schema to enable pricing and availability rich snippets.', true, 'Product');
+  } else if (pageType === 'news-media') {
+    // ── News & Media Targeted Checks ──────────────────────────────────────
+    const newsCheck = /\bnewsarticle\b/.test(all) || hasArticle
+      ? pass('news-schema', 'NewsArticle Schema', 'NewsArticle / Press Release schema detected — enables Google News & AI coverage.', PRIORITY.HIGH, 'NewsArticle schema present')
+      : fail('news-schema', 'NewsArticle Schema', 'PASS: Detects NewsArticle or Article in structured markup. None found.', PRIORITY.HIGH, 'Add NewsArticle schema for press releases and media updates.', true, 'NewsArticle');
 
     const orgCheck = hasOrg
-      ? pass('org-schema', 'Organization Schema', 'Organization / Seller schema detected.', PRIORITY.MEDIUM, 'Organization schema present')
-      : fail('org-schema', 'Organization Schema', 'Add Organization schema to link seller identity to product.', PRIORITY.MEDIUM, 'Add Organization schema for seller trust.', true, 'Organization');
+      ? pass('org-schema', 'Organization Schema', 'Organization / Publisher schema detected.', PRIORITY.MEDIUM, 'Organization schema present')
+      : fail('org-schema', 'Organization Schema', 'Add Organization schema as press publisher identity.', PRIORITY.MEDIUM, 'Add Organization schema.', true, 'Organization');
 
     const breadcrumbCheck = hasBreadcrumb
       ? pass('breadcrumb-schema', 'Breadcrumb Schema', 'BreadcrumbList schema detected.', PRIORITY.MEDIUM, 'Breadcrumb schema present')
-      : fail('breadcrumb-schema', 'Breadcrumb Schema', 'No Breadcrumb schema detected on product page.', PRIORITY.MEDIUM, 'Add BreadcrumbList schema for category hierarchy.', true, 'BreadcrumbList');
+      : fail('breadcrumb-schema', 'Breadcrumb Schema', 'Add BreadcrumbList schema for news section hierarchy.', PRIORITY.MEDIUM, 'Add BreadcrumbList schema.', true, 'BreadcrumbList');
 
-    const faqCheck = hasFAQ
-      ? pass('faq-schema', 'FAQ Schema', 'FAQPage schema detected on product page.', PRIORITY.LOW, 'FAQ schema present')
-      : na('faq-schema', 'FAQ Schema', 'N/A — FAQPage schema is optional for Product pages.', 'FAQ schema optional');
+    checks = [newsCheck, orgCheck, breadcrumbCheck];
 
-    checks = [productCheck, orgCheck, breadcrumbCheck, faqCheck];
+  } else if (pageType === 'contact-us') {
+    // ── Contact Us Page Targeted Checks ──────────────────────────────────
+    const contactSchemaCheck = /\bcontactpage\b/.test(all) || (hasOrg && /contactpoint|address|telephone/.test(all))
+      ? pass('contact-schema', 'Contact / Organization Schema', 'ContactPage or Organization ContactPoint schema detected — verified corporate channel.', PRIORITY.HIGH, 'ContactPage schema present')
+      : fail('contact-schema', 'Contact / Organization Schema', 'PASS: Detects ContactPage or ContactPoint in structured markup. None found.', PRIORITY.HIGH, 'Add ContactPage schema with telephone, email, and address for trust.', true, 'Organization');
+
+    const breadcrumbCheck = hasBreadcrumb
+      ? pass('breadcrumb-schema', 'Breadcrumb Schema', 'BreadcrumbList schema detected.', PRIORITY.MEDIUM, 'Breadcrumb schema present')
+      : fail('breadcrumb-schema', 'Breadcrumb Schema', 'Add BreadcrumbList schema.', PRIORITY.MEDIUM, 'Add BreadcrumbList schema.', true, 'BreadcrumbList');
+
+    const articleCheck = na('article-schema', 'Article Schema', 'N/A for Contact Page — Corporate contact info is primary entity.', 'Article schema N/A');
+
+    checks = [contactSchemaCheck, breadcrumbCheck, articleCheck];
+
+  } else if (pageType === 'bod') {
+    // ── Board of Directors (BOD) Targeted Checks ─────────────────────────
+    const bodCheck = /\b(person|itemlist)\b/.test(all)
+      ? pass('bod-schema', 'Leadership / Person Schema', 'Person / ItemList schema detected — structured Board of Directors governance.', PRIORITY.HIGH, 'Person / ItemList schema present')
+      : fail('bod-schema', 'Leadership / Person Schema', 'PASS: Detects Person or ItemList schema in structured markup. None found.', PRIORITY.HIGH, 'Add Person schema array for Board of Directors to boost E-E-A-T.', true, 'Organization');
+
+    const orgCheck = hasOrg
+      ? pass('org-schema', 'Organization Schema', 'Organization schema detected.', PRIORITY.MEDIUM, 'Organization schema present')
+      : fail('org-schema', 'Organization Schema', 'Add Organization schema.', PRIORITY.MEDIUM, 'Add Organization schema.', true, 'Organization');
+
+    const breadcrumbCheck = hasBreadcrumb
+      ? pass('breadcrumb-schema', 'Breadcrumb Schema', 'BreadcrumbList schema detected.', PRIORITY.MEDIUM, 'Breadcrumb schema present')
+      : fail('breadcrumb-schema', 'Breadcrumb Schema', 'Add BreadcrumbList schema.', PRIORITY.MEDIUM, 'Add BreadcrumbList schema.', true, 'BreadcrumbList');
+
+    checks = [bodCheck, orgCheck, breadcrumbCheck];
 
   } else if (pageType === 'faq') {
     // ── Dedicated FAQ Page Targeted Checks ────────────────────────────────
