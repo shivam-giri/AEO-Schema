@@ -1,4 +1,4 @@
-import { Zap, BarChart3, BookOpen } from 'lucide-react';
+import { Zap, BarChart3, BookOpen, Sun, Moon } from 'lucide-react';
 
 const ENGINES = ['Google SGE', 'Bing Copilot', 'Perplexity', 'ChatGPT'];
 
@@ -8,6 +8,8 @@ export default function Hero({
   onNavigateHome,
   currentView,
   showHeader = true,
+  theme = 'dark',
+  onToggleTheme,
 }) {
   return (
     <>
@@ -30,6 +32,15 @@ export default function Hero({
             onClick={onNavigateToScoringCriteria}
           >
             <BarChart3 size={14} /> Scoring Criteria
+          </button>
+          <button
+            className="theme-toggle-btn"
+            onClick={onToggleTheme}
+            title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
+            aria-label={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
+          >
+            {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+            <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
           </button>
         </div>
       </nav>

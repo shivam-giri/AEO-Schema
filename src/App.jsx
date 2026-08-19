@@ -19,6 +19,10 @@ const STEP_DELAYS = {
 };
 
 export default function App() {
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('aeo-theme') || 'dark';
+  });
+
   const [currentView, setCurrentView] = useState(() => {
     const hash = window.location.hash;
     const path = window.location.pathname;
@@ -35,6 +39,16 @@ export default function App() {
   const [auditResults, setAuditResults] = useState(null);
   const [lastUrl, setLastUrl] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+
+  // Apply data-theme attribute on document root and persist in localStorage
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('aeo-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme(t => (t === 'dark' ? 'light' : 'dark'));
+  }, []);
 
   // Handle hash / URL route changes
   useEffect(() => {
@@ -151,6 +165,8 @@ export default function App() {
           onNavigateHome={navigateHome}
           currentView={currentView}
           showHeader={state !== 'results'}
+          theme={theme}
+          onToggleTheme={toggleTheme}
         />
 
         {currentView === 'documentation' ? (
