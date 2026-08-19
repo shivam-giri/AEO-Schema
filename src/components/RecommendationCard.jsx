@@ -4,49 +4,28 @@ import { PRIORITY } from '../services/auditAnalyzer.js';
 const PRIORITY_CONFIG = {
   [PRIORITY.HIGH]: {
     label: 'High Priority',
-    dot: '#ef4444',
-    bg: 'rgba(239,68,68,0.07)',
-    border: 'rgba(239,68,68,0.2)',
-    badge: 'rgba(239,68,68,0.15)',
-    badgeText: '#f87171',
+    priorityClass: 'priority-high',
     emoji: '🔴',
   },
   [PRIORITY.MEDIUM]: {
     label: 'Medium Priority',
-    dot: '#f59e0b',
-    bg: 'rgba(245,158,11,0.07)',
-    border: 'rgba(245,158,11,0.2)',
-    badge: 'rgba(245,158,11,0.15)',
-    badgeText: '#fbbf24',
+    priorityClass: 'priority-medium',
     emoji: '🟡',
   },
   [PRIORITY.LOW]: {
     label: 'Quick Win',
-    dot: '#10b981',
-    bg: 'rgba(16,185,129,0.07)',
-    border: 'rgba(16,185,129,0.15)',
-    badge: 'rgba(16,185,129,0.15)',
-    badgeText: '#34d399',
+    priorityClass: 'priority-low',
     emoji: '🟢',
   },
 };
 
 export default function RecommendationCard({ rec, onSwitchToSchema }) {
-  const cfg = PRIORITY_CONFIG[rec.priority];
+  const cfg = PRIORITY_CONFIG[rec.priority] || PRIORITY_CONFIG[PRIORITY.LOW];
 
   return (
-    <div
-      className="rec-card"
-      style={{
-        background: cfg.bg,
-        borderColor: cfg.border,
-      }}
-    >
+    <div className={`rec-card ${cfg.priorityClass}`}>
       <div className="rec-card-header">
-        <span
-          className="rec-priority-badge"
-          style={{ background: cfg.badge, color: cfg.badgeText }}
-        >
+        <span className={`rec-priority-badge ${cfg.priorityClass}`}>
           {cfg.emoji} {cfg.label}
         </span>
         <span className="rec-category-tag">{rec.category}</span>

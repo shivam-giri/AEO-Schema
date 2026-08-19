@@ -4,16 +4,16 @@ import { CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 const CIRCUMFERENCE = 2 * Math.PI * 52; // radius = 52
 
 function getScoreColor(pct) {
-  if (pct >= 80) return '#10b981';
-  if (pct >= 60) return '#8b5cf6';
-  if (pct >= 40) return '#f59e0b';
-  return '#ef4444';
+  if (pct >= 80) return 'var(--accent-success)';
+  if (pct >= 60) return 'var(--accent-primary)';
+  if (pct >= 40) return 'var(--accent-warning)';
+  return 'var(--accent-danger)';
 }
 
 function getMetricBarColor(pct) {
-  if (pct >= 80) return '#10b981';
-  if (pct >= 50) return '#8b5cf6';
-  return '#f59e0b';
+  if (pct >= 80) return 'var(--accent-success)';
+  if (pct >= 50) return 'var(--accent-primary)';
+  return 'var(--accent-warning)';
 }
 
 const StatusIcon = ({ status }) => {
@@ -44,7 +44,7 @@ export default function AEOScoreCard({ score }) {
         <p className="score-label">AEO Readiness Score</p>
 
         <div className="score-gauge" role="img" aria-label={`${pct}%`}>
-          <svg width="120" height="120" viewBox="0 0 120 120">
+          <svg width="220" height="220" viewBox="0 0 120 120">
             <circle
               className="score-gauge-bg"
               cx="60" cy="60" r="52"

@@ -8,10 +8,10 @@ import { exportAuditPDF } from '../utils/pdfExporter.js';
 const CIRCUMFERENCE = 2 * Math.PI * 52;
 
 function getScoreColor(score) {
-  if (score >= 80) return '#10b981';
-  if (score >= 65) return '#8b5cf6';
-  if (score >= 40) return '#f59e0b';
-  return '#ef4444';
+  if (score >= 80) return 'var(--accent-success)';
+  if (score >= 65) return 'var(--accent-primary)';
+  if (score >= 40) return 'var(--accent-warning)';
+  return 'var(--accent-danger)';
 }
 
 const PRIORITY_LABELS = {
@@ -90,8 +90,8 @@ export default function AuditReport({ results, onReset, onSwitchToSchema }) {
 
         {/* Gauge + grade */}
         <div className="audit-gauge-wrap">
-          <div className="score-gauge" style={{ width: 110, height: 110 }}>
-            <svg width="110" height="110" viewBox="0 0 120 120">
+          <div className="score-gauge" style={{ width: 220, height: 220 }}>
+            <svg width="220" height="220" viewBox="0 0 120 120">
               <circle className="score-gauge-bg" cx="60" cy="60" r="52" />
               <circle
                 className="score-gauge-fill"
@@ -181,15 +181,15 @@ export default function AuditReport({ results, onReset, onSwitchToSchema }) {
 
         {/* Rec counts */}
         <div className="audit-rec-counts">
-          <div className="rec-count-item" style={{ color: '#f87171' }}>
+          <div className="rec-count-item rec-high">
             <span className="rec-count-number">{highRecs.length}</span>
             <span>High</span>
           </div>
-          <div className="rec-count-item" style={{ color: '#fbbf24' }}>
+          <div className="rec-count-item rec-medium">
             <span className="rec-count-number">{medRecs.length}</span>
             <span>Medium</span>
           </div>
-          <div className="rec-count-item" style={{ color: '#34d399' }}>
+          <div className="rec-count-item rec-low">
             <span className="rec-count-number">{lowRecs.length}</span>
             <span>Quick Wins</span>
           </div>

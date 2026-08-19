@@ -3,12 +3,13 @@ import AEOScoreCard from './AEOScoreCard.jsx';
 import SchemaCard from './SchemaCard.jsx';
 
 const PAGE_TYPE_LABELS = {
-  article: { label: 'Article / Blog', emoji: '📝' },
-  faq:     { label: 'FAQ Page',       emoji: '❓' },
-  howto:   { label: 'How-To Guide',   emoji: '🪜' },
-  homepage:{ label: 'Homepage',       emoji: '🏠' },
-  product: { label: 'Product Page',   emoji: '📦' },
-  generic: { label: 'Generic Page',   emoji: '🌐' },
+  article: { label: 'Article / Blog',           emoji: '📝' },
+  faq:     { label: 'FAQ Page',                 emoji: '❓' },
+  news:    { label: 'News & Media',             emoji: '📰' },
+  contact: { label: 'Contact Us',               emoji: '📞' },
+  bod:     { label: 'Board of Directors (BOD)', emoji: '👥' },
+  homepage:{ label: 'Homepage',                 emoji: '🏠' },
+  generic: { label: 'Generic Page',             emoji: '🌐' },
 };
 
 export default function ResultsPanel({ results, onReset }) {
@@ -122,21 +123,17 @@ export default function ResultsPanel({ results, onReset }) {
         ))}
       </div>
 
-      {/* Tips */}
+      {/* Tips / Quick Wins */}
       {score.percentage < 60 && (
-        <div style={{
-          marginTop: '32px',
-          padding: '20px 24px',
-          background: 'rgba(245,158,11,0.06)',
-          border: '1px solid rgba(245,158,11,0.2)',
-          borderRadius: '12px',
-        }}>
-          <h4 style={{ color: '#f59e0b', marginBottom: '12px', fontSize: '14px', fontWeight: 700 }}>
+        <div className="quick-wins-section">
+          <h4 className="quick-wins-title">
             💡 Quick Wins to Improve Your AEO Score
           </h4>
-          <ul style={{ color: '#94a3b8', fontSize: '13px', lineHeight: '1.8', paddingLeft: '16px' }}>
+          <ul className="quick-wins-list">
             {score.metrics.filter(m => m.status === 'fail').map(m => (
-              <li key={m.id}><strong style={{ color: '#e2e8f0' }}>{m.name}</strong> — {m.detail}</li>
+              <li key={m.id}>
+                <strong className="quick-wins-item-name">{m.name}</strong> — {m.detail}
+              </li>
             ))}
           </ul>
         </div>
