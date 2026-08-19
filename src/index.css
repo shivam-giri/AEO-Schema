@@ -255,6 +255,7 @@ body {
   box-shadow: var(--shadow-sm);
   transition: background-color var(--transition-base), border-color var(--transition-base);
   animation: fadeInDown 0.4s ease both;
+  backdrop-filter: blur(7px);
 }
 
 .navbar-brand {
@@ -1691,9 +1692,9 @@ body {
 }
 
 .plain-english-card p {
-  font-size: 18px;
+  font-size: 20px;
   color: var(--text-secondary);
-  line-height: 1.8;
+  line-height: 2.0;
 }
 
 .plain-english-list {
@@ -1773,7 +1774,7 @@ body {
   width: 100%;
   border-collapse: collapse;
   text-align: left;
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .matrix-table th {
@@ -2049,8 +2050,8 @@ body {
 }
 
 .doc-module-header h3 {
-  font-size: 18px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 600;
   color: var(--text-primary);
 }
 
@@ -2092,4 +2093,46 @@ body {
 .doc-faq-card a {
   color: var(--text-accent);
   text-decoration: underline;
+}
+
+/* ============================================================
+   Q&A Pitch Page Styles
+   ============================================================ */
+
+.qna-quote-sub {
+  margin-top: 14px;
+}
+
+.qna-card {
+  margin-bottom: 12px;
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+
+.qna-card:hover {
+  border-color: var(--accent-primary);
+}
+
+.qna-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.qna-card-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  padding-right: 12px;
+}
+
+.qna-card-body {
+  margin-top: 12px;
+  color: var(--text-secondary);
+  font-size: 16px;
+  line-height: 1.95;
+  border-top: 1px solid var(--color-border);
+  padding-top: 12px;
 }

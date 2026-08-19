@@ -1,10 +1,11 @@
-import { Zap, BarChart3, BookOpen, Sun, Moon } from 'lucide-react';
+import { Zap, BarChart3, BookOpen, Sun, Moon, MessageSquare } from 'lucide-react';
 
 const ENGINES = ['Google SGE', 'Bing Copilot', 'Perplexity', 'ChatGPT'];
 
 export default function Hero({
   onNavigateToScoringCriteria,
   onNavigateToDocumentation,
+  onNavigateToQnA,
   onNavigateHome,
   currentView,
   showHeader = true,
@@ -32,6 +33,12 @@ export default function Hero({
             onClick={onNavigateToScoringCriteria}
           >
             <BarChart3 size={14} /> Scoring Criteria
+          </button>
+          <button
+            className={`navbar-link-btn ${currentView === 'qna' ? 'active' : ''}`}
+            onClick={onNavigateToQnA}
+          >
+            <MessageSquare size={14} /> Q&amp;A
           </button>
           <button
             className="theme-toggle-btn"

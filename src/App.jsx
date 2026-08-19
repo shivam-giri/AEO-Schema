@@ -7,6 +7,7 @@ import ResultsPanel from './components/ResultsPanel.jsx';
 import AuditReport from './components/AuditReport.jsx';
 import ScoringCriteriaPage from './components/ScoringCriteriaPage.jsx';
 import DocumentationPage from './components/DocumentationPage.jsx';
+import QnAPage from './components/QnAPage.jsx';
 import { fetchPageHTML } from './services/fetcher.js';
 import { generateAEOSchemas } from './services/schemaGenerator.js';
 import { runFullAudit } from './services/auditAnalyzer.js';
@@ -15,7 +16,11 @@ const LOADER_STEPS_SCHEMA = ['fetch', 'parse', 'detect', 'generate', 'score'];
 const LOADER_STEPS_AUDIT  = ['fetch', 'parse', 'detect', 'generate', 'score'];
 
 const STEP_DELAYS = {
-  fetch: 0, parse: 500, detect: 900, generate: 1400, score: 1900,
+  fetch:    800,
+  parse:    600,
+  detect:   500,
+  generate: 600,
+  score:    500,
 };
 
 export default function App() {
@@ -28,6 +33,7 @@ export default function App() {
     const path = window.location.pathname;
     if (hash === '#documentation' || path === '/documentation') return 'documentation';
     if (hash === '#scoring-criteria' || path === '/scoring-criteria') return 'scoring-criteria';
+    if (hash === '#qna' || path === '/qna') return 'qna';
     return 'home';
   });
 
@@ -59,6 +65,8 @@ export default function App() {
         setCurrentView('documentation');
       } else if (hash === '#scoring-criteria' || path === '/scoring-criteria') {
         setCurrentView('scoring-criteria');
+      } else if (hash === '#qna' || path === '/qna') {
+        setCurrentView('qna');
       } else {
         setCurrentView('home');
       }
@@ -80,6 +88,11 @@ export default function App() {
   const navigateToScoringCriteria = useCallback(() => {
     setCurrentView('scoring-criteria');
     window.history.pushState({}, '', '#scoring-criteria');
+  }, []);
+
+  const navigateToQnA = useCallback(() => {
+    setCurrentView('qna');
+    window.history.pushState({}, '', '#qna');
   }, []);
 
   const navigateHome = useCallback(() => {
@@ -162,6 +175,7 @@ export default function App() {
         <Hero
           onNavigateToScoringCriteria={navigateToScoringCriteria}
           onNavigateToDocumentation={navigateToDocumentation}
+          onNavigateToQnA={navigateToQnA}
           onNavigateHome={navigateHome}
           currentView={currentView}
           showHeader={state !== 'results'}
@@ -173,6 +187,8 @@ export default function App() {
           <DocumentationPage onBack={navigateHome} />
         ) : currentView === 'scoring-criteria' ? (
           <ScoringCriteriaPage onBack={navigateHome} />
+        ) : currentView === 'qna' ? (
+          <QnAPage onBack={navigateHome} />
         ) : (
           <>
             {/* Mode selector — visible when not viewing results */}
