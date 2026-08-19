@@ -7,17 +7,17 @@
 
 /* ---------- CSS Variables / Design Tokens ---------- */
 :root {
-  /* ---------- Official IDX Inc Color Tokens (https://www.idx.inc) ---------- */
-  --primary-1: #110719;      /* IDX Deep Plum Dark Background */
-  --primary-2: #f7f6ee;      /* IDX Off-White Primary Text */
-  --primary-3: #ffffff;      /* IDX Pure White */
-  --primary-4: #eeff00;      /* IDX Electric Yellow */
-  --primary-5: #ff006f;      /* IDX Magenta Action Accent */
-  --primary-6: #11ffcc;      /* IDX Cyan Mint */
-  --secondary-1: #0068ff;    /* IDX Electric Blue */
+  /* ---------- Color Tokens ---------- */
+  --primary-1: #110719;      /* Deep Plum Dark Background */
+  --primary-2: #f7f6ee;      /* Off-White Primary Text */
+  --primary-3: #ffffff;      /* Pure White */
+  --primary-4: #eeff00;      /* Electric Yellow */
+  --primary-5: #ff006f;      /* Magenta Action Accent */
+  --primary-6: #11ffcc;      /* Cyan Mint */
+  --secondary-1: #0068ff;    /* Electric Blue */
   --monochrome-1: #000000;   /* Pure Black */
 
-  /* IDX Base Grayscale & Tone Scale */
+  /* Base Grayscale & Tone Scale */
   --base-1: #e2e1db;
   --base-2: #cecbc8;
   --base-3: #b8b5b4;
@@ -50,14 +50,14 @@
   --color-border-hover: rgba(255, 0, 111, 0.5);
 
   /* Brand / Accent */
-  --accent-primary: var(--primary-5);     /* #ff006f IDX Magenta */
-  --accent-secondary: var(--secondary-1); /* #0068ff IDX Connected Blue */
-  --accent-tertiary: var(--primary-6);  /* #11ffcc IDX Mint */
-  --accent-yellow: var(--primary-4);    /* #eeff00 IDX Yellow */
-  --accent-success: var(--success);     /* #3acd07 IDX Green */
-  --accent-warning: var(--primary-4);    /* #eeff00 IDX Yellow */
-  --accent-danger: var(--error);        /* #d91010 IDX Red */
-  --accent-info: var(--primary-6);      /* #11ffcc IDX Cyan */
+  --accent-primary: var(--primary-5);     /* #ff006f Magenta */
+  --accent-secondary: var(--secondary-1); /* #0068ff Connected Blue */
+  --accent-tertiary: var(--primary-6);  /* #11ffcc Mint */
+  --accent-yellow: var(--primary-4);    /* #eeff00 Yellow */
+  --accent-success: var(--success);     /* #3acd07 Green */
+  --accent-warning: var(--primary-4);    /* #eeff00 Yellow */
+  --accent-danger: var(--error);        /* #d91010 Red */
+  --accent-info: var(--primary-6);      /* #11ffcc Cyan */
 
   /* Gradients */
   --gradient-hero: var(--gradient-3);
@@ -66,10 +66,10 @@
   --gradient-glow: radial-gradient(ellipse at 50% 0%, rgba(151, 71, 255, 0.3) 0%, transparent 70%);
 
   /* Text */
-  --text-primary: var(--primary-2);     /* #f7f6ee IDX Off-white */
+  --text-primary: var(--primary-2);     /* #f7f6ee Off-white */
   --text-secondary: var(--base-2);      /* #cecbc8 */
   --text-muted: var(--base-5);          /* #8f8a8e */
-  --text-accent: var(--primary-6);      /* #11ffcc IDX Mint */
+  --text-accent: var(--primary-6);      /* #11ffcc Mint */
 
   /* Typography */
   --font-heading: 'Nova Square', sans-serif;
@@ -135,7 +135,7 @@
   --gradient-glow: radial-gradient(ellipse at 50% 0%, rgba(120, 82, 228, 0.10) 0%, transparent 70%);
 
   /* Text */
-  --text-primary: var(--primary-1);      /* #110719 IDX Deep Plum Text */
+  --text-primary: var(--primary-1);      /* #110719 Deep Plum Text */
   --text-secondary: #4a3d56;             /* Muted Deep Slate */
   --text-muted: #6f5f7d;
   --text-accent: #0068ff;
@@ -1346,7 +1346,7 @@ body {
 }
 
 /* ============================================================
-   IDX Scoring — new elements
+   Scoring — new elements
    ============================================================ */
 
 /* Weight badge on category header */

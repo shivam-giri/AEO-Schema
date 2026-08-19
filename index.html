@@ -4,11 +4,100 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>AEO Schema Generator — Answer Engine Optimization</title>
-    <meta name="description" content="Generate structured JSON-LD schemas optimized for Answer Engine Optimization (AEO). Boost visibility in Google SGE, Bing Copilot, and AI-powered answer engines." />
+    <meta name="theme-color" content="#110719" />
+
+    <!-- ── SEO Primary Meta Tags ────────────────────────────────────────── -->
+    <title>AEO Studio — Answer Engine Optimization &amp; Schema Generator</title>
+    <meta name="title" content="AEO Studio — Answer Engine Optimization &amp; Schema Generator" />
+    <meta name="description" content="Generate targeted JSON-LD schemas and perform 4-pillar AEO audits for ChatGPT, Perplexity AI, Google SGE, and Bing Copilot. Built for corporate, news, and enterprise websites." />
+    <meta name="keywords" content="AEO, Answer Engine Optimization, JSON-LD Schema Generator, Corporate SEO, ChatGPT Search, Perplexity AI, Google SGE, Board of Directors Schema, NewsArticle Schema" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://aeo-schema.vercel.app/" />
+
+    <!-- ── Open Graph / Facebook ────────────────────────────────────────── -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://aeo-schema.vercel.app/" />
+    <meta property="og:title" content="AEO Studio — Answer Engine Optimization &amp; Schema Generator" />
+    <meta property="og:description" content="Audit and optimize your website for AI answer engines. Generate valid JSON-LD schemas tailored for Homepages, News, Contact Us, Board of Directors, and FAQ pages." />
+    <meta property="og:site_name" content="AEO Studio" />
+
+    <!-- ── Twitter ─────────────────────────────────────────────────────── -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://aeo-schema.vercel.app/" />
+    <meta property="twitter:title" content="AEO Studio — Answer Engine Optimization &amp; Schema Generator" />
+    <meta property="twitter:description" content="Audit and optimize your website for AI answer engines. Generate valid JSON-LD schemas tailored for enterprise and corporate websites." />
+
+    <!-- ── Google Fonts ────────────────────────────────────────────────── -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Nova+Square&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+    <!-- ── AEO Structured JSON-LD Knowledge Graph ──────────────────────── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": "WebApplication",
+          "@id": "https://aeo-schema.vercel.app/#webapp",
+          "url": "https://aeo-schema.vercel.app/",
+          "name": "AEO Studio — Answer Engine Optimization & Schema Generator",
+          "description": "Generate targeted JSON-LD schemas and audit your website for AI answer engines including ChatGPT Search, Perplexity AI, Google SGE, and Bing Copilot.",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "All Browsers",
+          "browserRequirements": "Requires JavaScript and HTML5 DOM parser",
+          "publisher": {
+            "@type": "Organization",
+            "@id": "https://aeo-schema.vercel.app/#organization",
+            "name": "AEO Studio",
+            "url": "https://aeo-schema.vercel.app/"
+          },
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          }
+        },
+        {
+          "@type": "Organization",
+          "@id": "https://aeo-schema.vercel.app/#organization",
+          "name": "AEO Studio",
+          "url": "https://aeo-schema.vercel.app/"
+        },
+        {
+          "@type": "WebSite",
+          "@id": "https://aeo-schema.vercel.app/#website",
+          "url": "https://aeo-schema.vercel.app/",
+          "name": "AEO Studio",
+          "publisher": {
+            "@id": "https://aeo-schema.vercel.app/#organization"
+          }
+        },
+        {
+          "@type": "FAQPage",
+          "@id": "https://aeo-schema.vercel.app/#faq",
+          "mainEntity": [
+            {
+              "@type": "Question",
+              "name": "What is AEO Studio?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "AEO Studio is an Answer Engine Optimization tool that generates targeted JSON-LD schemas and performs 4-pillar AEO audits to optimize websites for AI search engines like ChatGPT, Perplexity, Google SGE, and Bing Copilot."
+              }
+            },
+            {
+              "@type": "Question",
+              "name": "How does AEO schema generation work?",
+              "acceptedAnswer": {
+                "@type": "Answer",
+                "text": "AEO Studio analyzes DOM structures, page type signals (Homepage, Article, News & Media, Contact Us, Board of Directors, FAQ), and metadata to generate valid, machine-readable JSON-LD schemas tailored for AI indexing."
+              }
+            }
+          ]
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

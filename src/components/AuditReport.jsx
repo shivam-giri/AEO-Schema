@@ -45,7 +45,7 @@ export default function AuditReport({ results, onReset, onSwitchToSchema }) {
 
   const handleDownload = () => {
     const lines = [
-      'AEO AUDIT REPORT — IDX Methodology',
+      'AEO AUDIT REPORT — 4-Pillar Methodology',
       `URL: ${meta.canonicalUrl || 'Unknown'}`,
       `Generated: ${new Date().toLocaleDateString()}`,
       '',

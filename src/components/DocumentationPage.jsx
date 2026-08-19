@@ -139,7 +139,7 @@ export default function DocumentationPage({ onBack }) {
           <div className="pipeline-step-card">
             <div className="pipeline-step-num">05</div>
             <div className="pipeline-step-content">
-              <h3>IDX 4-Pillar AEO Audit</h3>
+              <h3>4-Pillar AEO Audit</h3>
               <p>Evaluates Schema Markup (30%), Content Structure (25%), Technical SEO (25%), and E-E-A-T (20%) against a 65/100 threshold.</p>
             </div>
           </div>
@@ -194,7 +194,7 @@ export default function DocumentationPage({ onBack }) {
           <div className="scoring-card doc-module-card">
             <div className="doc-module-header">
               <span className="doc-module-badge">Module 3</span>
-              <h3>IDX 4-Pillar AEO Scoring &amp; Audit Engine</h3>
+              <h3>4-Pillar AEO Scoring &amp; Audit Engine</h3>
             </div>
             <p>
               Evaluates 30 components using clear Pass/Fail criteria tailored to the active Page Type:

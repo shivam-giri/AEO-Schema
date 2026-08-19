@@ -1,6 +1,6 @@
 /**
  * auditAnalyzer.js
- * Rebuilt to match IDX Answer Engine Audit scoring methodology exactly.
+ * Rebuilt to match 4-Pillar Answer Engine Audit scoring methodology.
  *
  * Formula: Schema Markup (30%) + Content Structure (25%) + Technical SEO (25%) + E-E-A-T (20%)
  * Each check is Pass/Fail. Category score = avg of checks (0–100).
