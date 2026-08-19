@@ -62,7 +62,11 @@
           "@type": "Organization",
           "@id": "https://aeo-schema.vercel.app/#organization",
           "name": "AEO Studio",
-          "url": "https://aeo-schema.vercel.app/"
+          "url": "https://aeo-schema.vercel.app/",
+          "email": "contact@aeo-schema.vercel.app",
+          "sameAs": [
+            "https://aeo-schema.vercel.app/"
+          ]
         },
         {
           "@type": "WebSite",
@@ -100,7 +104,43 @@
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- ── Pre-rendered Static Semantic Content for Crawlers & AEO Bots ── -->
+      <header>
+        <nav aria-label="Main Navigation">
+          <a href="https://aeo-schema.vercel.app/">AEO Studio</a>
+          <a href="https://aeo-schema.vercel.app/#documentation">How It Works</a>
+          <a href="https://aeo-schema.vercel.app/#scoring-criteria">Scoring Criteria</a>
+          <a href="mailto:contact@aeo-schema.vercel.app">Contact Us</a>
+          <a href="https://aeo-schema.vercel.app/#about">About Us</a>
+        </nav>
+        <h1>AEO Studio — Answer Engine Optimization &amp; Schema Generator</h1>
+        <p>Generate targeted JSON-LD schemas and perform 4-pillar AEO audits for ChatGPT, Perplexity AI, Google SGE, and Bing Copilot. Built for corporate, news, and enterprise websites.</p>
+      </header>
+
+      <main>
+        <section>
+          <h2>What is Answer Engine Optimization (AEO)?</h2>
+          <p>Answer Engine Optimization (AEO) structures web content using machine-readable JSON-LD schemas and direct question-answer formatting so Large Language Models and AI search engines can parse, trust, and cite your brand accurately.</p>
+        </section>
+
+        <section>
+          <h2>How does AEO Schema Generation work?</h2>
+          <p>AEO Studio analyzes website DOM structures, page type signals (Homepage, Article, News &amp; Media, Contact Us, Board of Directors, FAQ), and metadata to generate valid, machine-readable JSON-LD schemas tailored for AI indexing.</p>
+        </section>
+
+        <section>
+          <h2>Why are JSON-LD Schemas important for AI search engines?</h2>
+          <p>JSON-LD schemas provide structured entity definitions for brand identity, corporate governance, press releases, and Q&amp;A pairs. This eliminates hallucination and establishes high E-E-A-T credibility across AI crawlers.</p>
+        </section>
+      </main>
+
+      <hr />
+
+      <footer>
+        <p>AEO Studio © 2026. Built with 4-pillar AEO methodology. Contact: <a href="mailto:contact@aeo-schema.vercel.app">contact@aeo-schema.vercel.app</a> | <a href="https://aeo-schema.vercel.app/#about">About AEO Studio</a></p>
+      </footer>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
