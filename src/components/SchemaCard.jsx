@@ -1,15 +1,19 @@
 import { useState } from 'react';
-import { Copy, Check, ChevronDown, FileJson } from 'lucide-react';
+import { Copy, Check, ChevronDown, FileJson, Sparkles, HelpCircle } from 'lucide-react';
 
 // Schema type → color/icon configuration
 const TYPE_CONFIG = {
   FAQPage:        { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)', emoji: '❓' },
   HowTo:          { color: '#06b6d4', bg: 'rgba(6,182,212,0.15)',   emoji: '🪜' },
   Article:        { color: '#f59e0b', bg: 'rgba(245,158,11,0.15)',  emoji: '📄' },
+  NewsArticle:    { color: '#ef4444', bg: 'rgba(239,68,68,0.15)',   emoji: '📰' },
   Organization:   { color: '#10b981', bg: 'rgba(16,185,129,0.15)',  emoji: '🏢' },
   BreadcrumbList: { color: '#ec4899', bg: 'rgba(236,72,153,0.15)',  emoji: '🔗' },
   WebSite:        { color: '#6366f1', bg: 'rgba(99,102,241,0.15)',  emoji: '🌐' },
   Product:        { color: '#f97316', bg: 'rgba(249,115,22,0.15)',  emoji: '📦' },
+  Event:          { color: '#3b82f6', bg: 'rgba(59,130,246,0.15)',  emoji: '📅' },
+  ItemList:       { color: '#8b5cf6', bg: 'rgba(139,92,246,0.15)',  emoji: '👥' },
+  ContactPage:    { color: '#14b8a6', bg: 'rgba(20,184,166,0.15)',  emoji: '📞' },
 };
 
 /**
@@ -34,7 +38,7 @@ export default function SchemaCard({ schemaResult, index }) {
   const [isOpen, setIsOpen] = useState(index === 0); // first card open by default
   const [copied, setCopied] = useState(false);
 
-  const { type, label, description, impact, schema } = schemaResult;
+  const { type, label, description, impact, schema, qaPairs = [], qaSource = 'heuristic' } = schemaResult;
   const config = TYPE_CONFIG[type] || TYPE_CONFIG.Article;
   const jsonStr = JSON.stringify(schema, null, 2);
   const highlighted = highlightJSON(jsonStr.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
@@ -81,8 +85,16 @@ export default function SchemaCard({ schemaResult, index }) {
 
         {/* Info */}
         <div className="schema-card-info">
-          <div className="schema-card-type" style={{ color: config.color }}>
-            {label}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span className="schema-card-type" style={{ color: config.color }}>
+              {label}
+            </span>
+            {qaPairs.length > 0 && (
+              <span className={`schema-qa-pill ${qaSource === 'gemini' ? 'qa-pill-ai' : 'qa-pill-dom'}`}>
+                {qaSource === 'gemini' ? <Sparkles size={11} /> : <HelpCircle size={11} />}
+                {qaPairs.length} Q&amp;A Included
+              </span>
+            )}
           </div>
           <div className="schema-card-desc">{description}</div>
         </div>
@@ -112,6 +124,7 @@ export default function SchemaCard({ schemaResult, index }) {
         role="region"
         aria-labelledby={`schema-header-${type}`}
       >
+        {/* JSON-LD Code with embedded Q&A */}
         <div className="schema-code-wrapper">
           <pre
             className="schema-code"

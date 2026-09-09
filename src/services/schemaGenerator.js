@@ -16,14 +16,18 @@ import {
   extractMeta,
   detectAllContentSignals,
 } from '../utils/htmlParser.js';
+import { generateQAPairsForSchemas } from './geminiService.js';
 
 /**
- * Main entry point: analyze HTML and generate AEO schemas for ALL content found.
- * @param {string} html     - Raw HTML string
- * @param {string} pageUrl  - The URL of the page
- * @returns {{ schemas: SchemaResult[], score: AEOScore, meta: PageMeta, pageType: string, signals: ContentSignals }}
+ * Main entry point: analyze HTML and generate AEO schemas for ALL content found,
+ * embedding conversational Q&A content inside every schema for AI search engines.
+ *
+ * @param {string} html        - Raw HTML string
+ * @param {string} pageUrl     - The URL of the page
+ * @param {string} [userApiKey] - Optional Gemini API key
+ * @returns {Promise<{ schemas: SchemaResult[], score: AEOScore, meta: PageMeta, pageType: string, signals: ContentSignals, qaSource: string }>}
  */
-export function generateAEOSchemas(html, pageUrl) {
+export async function generateAEOSchemas(html, pageUrl, userApiKey = '') {
   const doc  = parseHTML(html);
   const meta = extractMeta(doc, pageUrl);
 
@@ -35,7 +39,7 @@ export function generateAEOSchemas(html, pageUrl) {
 
   // ── Foundation: always present on every page ───────────────────────────────
   schemas.push(generateOrganizationSchema(org, meta, pageUrl));
-  schemas.push(generateWebSiteSchema(meta, pageUrl));
+  schemas.push(generateWebSiteSchema(meta, pageUrl, org));
 
   // ── BreadcrumbList: every non-homepage page ────────────────────────────────
   if (!isHomepage) {
@@ -52,7 +56,7 @@ export function generateAEOSchemas(html, pageUrl) {
 
   // News / Press Release — checked before generic Article
   if (signals.hasNews) {
-    schemas.push(generateNewsArticleSchema(meta, articleBody, pageUrl));
+    schemas.push(generateNewsArticleSchema(meta, articleBody, pageUrl, doc, isHomepage));
   }
 
   // Article / editorial content (skip if already added NewsArticle)
@@ -72,12 +76,12 @@ export function generateAEOSchemas(html, pageUrl) {
 
   // Events / Calendar
   if (signals.hasEvents) {
-    schemas.push(generateEventSchema(doc, org, meta, pageUrl));
+    schemas.push(generateEventSchema(doc, org, meta, pageUrl, isHomepage));
   }
 
   // Product / e-commerce
   if (signals.hasProduct) {
-    schemas.push(generateProductSchema(productData, pageUrl, meta));
+    schemas.push(generateProductSchema(productData, pageUrl, meta, doc, isHomepage));
   }
 
   // Contact page (only on dedicated contact pages, not every page with a footer email)
@@ -85,18 +89,67 @@ export function generateAEOSchemas(html, pageUrl) {
     schemas.push(generateContactPageSchema(meta, org, pageUrl));
   }
 
-  // ── AEO Score ──────────────────────────────────────────────────────────────
-  const score = calculateAEOScore(meta, signals, schemas, doc);
+  // ── Enrich every schema with Q&A content (Gemini AI or Heuristic) ──────────
+  let qaSource = 'heuristic';
+  try {
+    const qaResult = await generateQAPairsForSchemas(schemas, doc, meta, signals, pageUrl, userApiKey);
+    qaSource = qaResult.source;
+    const qnaMap = qaResult.qna || {};
 
-  return { schemas, score, meta, pageType, signals };
+    for (const item of schemas) {
+      if (item.type === 'BreadcrumbList') continue;
+      const pairs = qnaMap[item.type] || [];
+      item.qaPairs = pairs;
+      item.qaSource = qaSource;
+
+      if (pairs.length > 0) {
+        if (item.type === 'FAQPage') {
+          // FAQPage uses standard mainEntity
+          item.schema.mainEntity = pairs.map(p => ({
+            '@type': 'Question',
+            name: p.question,
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: p.answer,
+            },
+          }));
+        } else {
+          // Entity schemas (Organization, Article, Product, Event, etc.) embed Q&A via hasPart
+          item.schema.hasPart = pairs.map(p => ({
+            '@type': 'Question',
+            name: p.question,
+            acceptedAnswer: {
+              '@type': 'Answer',
+              text: p.answer,
+            },
+          }));
+        }
+      }
+    }
+  } catch (qaErr) {
+    console.warn('[schemaGenerator] Error attaching Q&A pairs:', qaErr);
+  }
+
+  return { schemas, score: null, meta, pageType, signals, qaSource };
 }
 
 // ============================================================
 // Schema Generators
 // ============================================================
 
-function generateWebSiteSchema(meta, pageUrl) {
+function generateWebSiteSchema(meta, pageUrl, org) {
   const origin = (() => { try { return new URL(pageUrl).origin; } catch { return pageUrl; } })();
+  let siteName = org?.name || meta.siteName || '';
+  if (!siteName || /^(home|welcome)$/i.test(siteName.trim())) {
+    try {
+      const full = meta.title || '';
+      const parts = full.split(/\s*\|\s*|\s*[—•]\s*|\s*::\s*|\s+[-–]\s+/).map(p => p.trim()).filter(Boolean);
+      const nonGeneric = parts.filter(p => !/^(home|welcome)$/i.test(p));
+      siteName = nonGeneric[nonGeneric.length - 1] || nonGeneric[0] || 'Website';
+    } catch {
+      siteName = 'Website';
+    }
+  }
 
   return {
     type: 'WebSite',
@@ -106,7 +159,7 @@ function generateWebSiteSchema(meta, pageUrl) {
     schema: {
       '@context': 'https://schema.org',
       '@type': 'WebSite',
-      name: meta.siteName || meta.title || '',
+      name: siteName,
       url: origin,
       description: meta.description || '',
       ...(meta.image ? { image: meta.image } : {}),
@@ -234,8 +287,29 @@ function generateArticleSchema(meta, body, pageUrl) {
   };
 }
 
-function generateNewsArticleSchema(meta, body, pageUrl) {
+function generateNewsArticleSchema(meta, body, pageUrl, doc, isHomepage = false) {
   const origin = (() => { try { return new URL(pageUrl).origin; } catch { return pageUrl; } })();
+
+  let headline = meta.title || '';
+  let description = meta.description || '';
+
+  // If this is a homepage or generic title, extract specific featured news headline
+  if (isHomepage || /^(home|welcome)$/i.test(headline.trim())) {
+    const newsCard = doc?.querySelector(
+      '.press-release, .news-item, .media-release, [class*="press-release"], [class*="news-card"], [class*="latest-update"], article'
+    );
+    const specificHeading =
+      newsCard?.querySelector('h1, h2, h3, h4, .title, [class*="title"], [class*="heading"]')?.textContent?.trim() ||
+      doc?.querySelector('.press-release h2, .press-release h3, .news-item h2, .news-item h3, article h2, [class*="latest"] h2')?.textContent?.trim();
+
+    if (specificHeading && specificHeading.length > 5) {
+      headline = specificHeading;
+    }
+    const specificDesc = newsCard?.querySelector('p')?.textContent?.trim();
+    if (specificDesc && specificDesc.length > 20) {
+      description = specificDesc;
+    }
+  }
 
   return {
     type: 'NewsArticle',
@@ -245,8 +319,8 @@ function generateNewsArticleSchema(meta, body, pageUrl) {
     schema: {
       '@context': 'https://schema.org',
       '@type': 'NewsArticle',
-      headline: meta.title || '',
-      description: meta.description || '',
+      headline,
+      description,
       ...(meta.image ? { image: meta.image } : {}),
       url: meta.canonicalUrl || pageUrl,
       ...(meta.author ? {
@@ -305,20 +379,28 @@ function generateContactPageSchema(meta, org, pageUrl) {
 
 function generateBODSchema(doc, org, pageUrl) {
   const personEls = Array.from(doc.querySelectorAll(
-    '.director, .board, .leadership, .member, .profile, ' +
+    '.bod-item, .bod-inner, [class*="bod-"], .director, .board, .leadership, .member, .profile, ' +
     '[class*="director"], [class*="leadership"], [class*="board-member"], [class*="governance"]'
   ));
-  let persons = personEls.map(el => {
-    const name = el.querySelector('h2, h3, h4, .name, [class*="name"]')?.textContent?.trim();
-    const title = el.querySelector('.title, .role, [class*="title"], [class*="role"]')?.textContent?.trim();
-    return name ? { name, title: title || 'Member of the Board' } : null;
+
+  let rawPersons = personEls.map(el => {
+    const name = el.querySelector('.bod-name, [class*="bod-name"], h2, h3, h4, .name, [class*="name"]')?.textContent?.trim();
+    const title = el.querySelector('.bod-position, [class*="bod-position"], .title, .role, [class*="title"], [class*="role"], [class*="position"]')?.textContent?.trim();
+    return name && name.length >= 3 && name.length <= 60 ? { name, title: title || 'Member of the Board' } : null;
   }).filter(Boolean);
 
-  if (persons.length === 0) {
-    persons = [
-      { name: 'Executive Leadership', title: 'Board of Directors' },
-    ];
-  }
+  // Deduplicate by name
+  const seen = new Set();
+  const persons = rawPersons.filter(p => {
+    const key = p.name.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  const finalPersons = persons.length > 0 ? persons : [
+    { name: 'Executive Leadership', title: 'Board of Directors' },
+  ];
 
   return {
     type: 'ItemList',
@@ -330,7 +412,7 @@ function generateBODSchema(doc, org, pageUrl) {
       '@type': 'ItemList',
       name: 'Board of Directors & Executive Leadership',
       description: `Leadership roster for ${org.name || 'Organization'}`,
-      itemListElement: persons.slice(0, 10).map((p, index) => ({
+      itemListElement: finalPersons.slice(0, 25).map((p, index) => ({
         '@type': 'ListItem',
         position: index + 1,
         item: {
@@ -350,8 +432,18 @@ function generateBODSchema(doc, org, pageUrl) {
 
 function generateOrganizationSchema(org, meta, pageUrl) {
   const origin = (() => { try { return new URL(pageUrl).origin; } catch { return pageUrl; } })();
-  const name   = org?.name || meta?.siteName || meta?.title?.split(/[-|·]/)[0]?.trim() || new URL(pageUrl).hostname;
-  const url    = org?.url   || origin;
+  let name = org?.name || meta?.siteName || '';
+  if (!name || /^(home|welcome)$/i.test(name.trim())) {
+    try {
+      const full = meta?.title || '';
+      const parts = full.split(/\s*\|\s*|\s*[—•]\s*|\s*::\s*|\s+[-–]\s+/).map(p => p.trim()).filter(Boolean);
+      const nonGeneric = parts.filter(p => !/^(home|welcome)$/i.test(p));
+      name = nonGeneric[nonGeneric.length - 1] || nonGeneric[0] || new URL(pageUrl).hostname;
+    } catch {
+      name = new URL(pageUrl).hostname;
+    }
+  }
+  const url = org?.url || origin;
 
   const schema = {
     '@context': 'https://schema.org',
@@ -417,8 +509,14 @@ function generateBreadcrumbSchema(items, pageUrl, meta) {
   };
 }
 
-function generateProductSchema(product, pageUrl, meta) {
-  const productName = product?.name || meta?.title || 'Product';
+function generateProductSchema(product, pageUrl, meta, doc, isHomepage = false) {
+  let productName = product?.name || '';
+  if (!productName || (isHomepage && /^(home|welcome)$/i.test(productName.trim()))) {
+    const productEl = doc?.querySelector('[itemtype*="Product"], .product-item, .product-card, [class*="product-card"]');
+    productName =
+      productEl?.querySelector('h1, h2, h3, .product-title, [class*="title"]')?.textContent?.trim() ||
+      (!/^(home|welcome)$/i.test((meta?.title || '').trim()) ? meta.title : 'Featured Product');
+  }
 
   const schema = {
     '@context': 'https://schema.org',
@@ -450,17 +548,16 @@ function generateProductSchema(product, pageUrl, meta) {
   };
 }
 
-function generateEventSchema(doc, org, meta, pageUrl) {
-  // Try to extract the first event element's name/date from the DOM
-  const eventEl = doc.querySelector('[class*="event"], [itemtype*="Event"]');
-  const eventName =
-    eventEl?.querySelector('h2, h3, h4, .event-title, [class*="event-title"]')?.textContent?.trim() ||
-    meta.title ||
-    'Event';
+function generateEventSchema(doc, org, meta, pageUrl, isHomepage = false) {
+  // Extract event element from DOM
+  const eventEl = doc.querySelector('.event-item, .event-card, [class*="event-item"], [class*="event-card"], [class*="event-listing"], [itemtype*="Event"]');
+  let eventName =
+    eventEl?.querySelector('h1, h2, h3, h4, .event-title, [class*="event-title"], .title')?.textContent?.trim() ||
+    (!/^(home|welcome)$/i.test((meta.title || '').trim()) ? meta.title : 'Featured Event');
 
   const startDate =
     eventEl?.querySelector('time[datetime]')?.getAttribute('datetime') ||
-    doc.querySelector('time[datetime]')?.getAttribute('datetime') ||
+    doc.querySelector('.event-date time[datetime], time[datetime]')?.getAttribute('datetime') ||
     new Date().toISOString().split('T')[0];
 
   const location =
@@ -604,19 +701,20 @@ export function calculateAEOScore(meta, signals, schemas, doc) {
     });
   }
 
-  // 8. FAQ content (15 pts) — only when FAQ signals detected
-  if (hasFAQ) {
-    const faqScore = faqData.found ? Math.min(15, faqData.pairs.length * 3) : 0;
-    allMetrics.push({
-      id: 'faq',
-      name: 'FAQ / Q&A Content',
-      score: faqScore,
-      max: 15,
-      status: faqScore >= 12 ? 'pass' : faqScore > 0 ? 'warn' : 'fail',
-      detail: faqData.found ? `${faqData.pairs.length} Q&A pairs found — great for AI snippets` : 'No FAQ patterns detected',
-      always: false,
-    });
-  }
+  // 8. Conversational Q&A (15 pts) — measures AI answer engine readability
+  const totalQAPairs = schemas.reduce((acc, s) => acc + (s.qaPairs?.length || 0), 0);
+  const faqScore = Math.min(15, Math.max(totalQAPairs >= 2 ? 15 : totalQAPairs * 7, faqData?.found ? faqData.pairs.length * 3 : 0));
+  allMetrics.push({
+    id: 'faq',
+    name: 'Conversational Q&A Content',
+    score: faqScore,
+    max: 15,
+    status: faqScore >= 12 ? 'pass' : faqScore > 0 ? 'warn' : 'fail',
+    detail: totalQAPairs > 0
+      ? `${totalQAPairs} Q&A pairs embedded across schemas for conversational AI answers`
+      : 'No conversational Q&A pairs generated',
+    always: true,
+  });
 
   // 9. Author / Date signals (8 pts) — only for editorial content
   if (hasArticle || hasNews || hasBOD) {

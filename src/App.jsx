@@ -13,14 +13,12 @@ import { fetchPageHTML } from './services/fetcher.js';
 import { generateAEOSchemas } from './services/schemaGenerator.js';
 import { runFullAudit } from './services/auditAnalyzer.js';
 
-const LOADER_STEPS_SCHEMA = ['fetch', 'parse', 'detect', 'generate', 'score'];
-const LOADER_STEPS_AUDIT  = ['fetch', 'parse', 'detect', 'generate', 'score'];
-
 const STEP_DELAYS = {
   fetch:    800,
   parse:    600,
   detect:   500,
   generate: 600,
+  qa:       700,
   score:    500,
 };
 
@@ -144,9 +142,9 @@ export default function App() {
       await advanceStep('detect');
 
       if (mode === 'schema') {
-        const results = generateAEOSchemas(html, resolvedUrl);
         await advanceStep('generate');
-        await advanceStep('score');
+        await advanceStep('qa');
+        const results = await generateAEOSchemas(html, resolvedUrl);
         await new Promise(r => setTimeout(r, 400));
         setSchemaResults(results);
 
@@ -243,7 +241,7 @@ export default function App() {
             )}
 
             {/* Loader */}
-            {state === 'loading' && <AnalysisLoader step={loaderStep} />}
+            {state === 'loading' && <AnalysisLoader step={loaderStep} mode={mode} />}
 
             {/* Results — Schema mode */}
             {state === 'results' && mode === 'schema' && schemaResults && (

@@ -12,6 +12,8 @@ server/node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.*
 .vercel
 
 # Editor directories and files

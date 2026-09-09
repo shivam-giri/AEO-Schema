@@ -1,132 +1,27 @@
-const express = require('express');
-const cors = require('cors');
-const fetch = require('node-fetch');
-const path = require('path');
-
-// Load .env from root or server directory
-try {
-  require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
-} catch { /* ignore */ }
-try {
-  require('dotenv').config();
-} catch { /* ignore */ }
-
-const app = express();
-const PORT = 3001;
-
-app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:3000'],
-  methods: ['GET', 'POST'],
-}));
-
-app.use(express.json({ limit: '10mb' }));
-
 /**
- * GET /api/fetch?url=<encoded-url>
- * Fetches the HTML content of the given URL and returns it.
- */
-app.get('/api/fetch', async (req, res) => {
-  const { url } = req.query;
-
-  if (!url) {
-    return res.status(400).json({ error: 'Missing "url" query parameter.' });
-  }
-
-  let targetUrl;
-  try {
-    targetUrl = new URL(url);
-  } catch {
-    return res.status(400).json({ error: 'Invalid URL format.' });
-  }
-
-  // Only allow http/https
-  if (!['http:', 'https:'].includes(targetUrl.protocol)) {
-    return res.status(400).json({ error: 'Only HTTP and HTTPS URLs are supported.' });
-  }
-
-  try {
-    const response = await fetch(targetUrl.toString(), {
-      method: 'GET',
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (compatible; AEO-Schema-Generator/1.0; +https://aeo-tool.dev)',
-        Accept:
-          'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.5',
-        'Accept-Encoding': 'identity',
-        'Cache-Control': 'no-cache',
-      },
-      redirect: 'follow',
-      timeout: 15000,
-    });
-
-    if (!response.ok) {
-      return res.status(response.status).json({
-        error: `Target URL responded with HTTP ${response.status}: ${response.statusText}`,
-      });
-    }
-
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('html') && !contentType.includes('xml') && !contentType.includes('text')) {
-      return res.status(415).json({
-        error: `Unsupported content type: ${contentType}. Only HTML pages are supported.`,
-      });
-    }
-
-    const html = await response.text();
-    const finalUrl = response.url; // may differ if redirected
-
-    return res.json({
-      html,
-      finalUrl,
-      statusCode: response.status,
-      contentType,
-    });
-  } catch (err) {
-    console.error('[AEO Server] Fetch error:', err.message);
-
-    if (err.type === 'request-timeout' || err.code === 'ETIMEDOUT') {
-      return res.status(504).json({ error: 'Request timed out. The target URL did not respond in time.' });
-    }
-
-    if (err.code === 'ENOTFOUND' || err.code === 'EAI_AGAIN') {
-      return res.status(502).json({ error: 'Could not resolve host. Check the URL and try again.' });
-    }
-
-    if (err.code === 'ECONNREFUSED') {
-      return res.status(502).json({ error: 'Connection refused by the target server.' });
-    }
-
-    return res.status(500).json({ error: `Server error: ${err.message}` });
-  }
-});
-
-// Health check
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
-});
-
-/**
- * GET /api/gemini-status
- * Checks whether GEMINI_API_KEY is configured on the server.
- */
-app.get('/api/gemini-status', (req, res) => {
-  const hasKey = !!process.env.GEMINI_API_KEY;
-  res.json({ configured: hasKey });
-});
-
-/**
- * POST /api/generate-qa
+ * api/generate-qa.js — Vercel Serverless Function
  * Generates structured Q&A pairs for each schema using Google Gemini API.
- * Request body: { pageUrl, title, pageText, schemas, apiKey }
  */
-app.post('/api/generate-qa', async (req, res) => {
+
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed. Use POST.' });
+  }
+
   const { pageUrl, title, pageText, schemas, apiKey } = req.body || {};
   const geminiKey = apiKey || process.env.GEMINI_API_KEY;
 
   if (!geminiKey) {
     return res.status(400).json({
-      error: 'GEMINI_API_KEY not configured. Please add GEMINI_API_KEY to your .env file or provide it in the request.',
+      error: 'GEMINI_API_KEY not configured.',
       code: 'NO_API_KEY',
     });
   }
@@ -199,28 +94,22 @@ Example structure:
 
   let lastErr = null;
   let parsedQnA = null;
-  let usedModel = null;
 
   for (const model of CANDIDATE_MODELS) {
     try {
-      console.log(`[AEO Server] Requesting Q&A from Gemini model: ${model}...`);
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(geminiKey)}`;
 
       const response = await fetch(geminiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }],
-            },
-          ],
+          contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             temperature: 0.2,
             responseMimeType: 'application/json',
           },
         }),
-        timeout: 25000,
+        signal: AbortSignal.timeout(25000),
       });
 
       if (!response.ok) {
@@ -231,18 +120,13 @@ Example structure:
           parsedErr = j.error?.message || errText;
         } catch { /* ignore */ }
 
-        console.warn(`[AEO Server] Model ${model} returned (${response.status}): ${parsedErr}`);
         lastErr = parsedErr;
-
-        // If high demand (503), rate limit (429), or internal error (500), try fallback model
         if (response.status === 503 || response.status === 429 || response.status === 500 || /demand|unavailable|exhausted/i.test(parsedErr)) {
-          console.log(`[AEO Server] Demand spike on ${model}, attempting next candidate model...`);
           await new Promise(r => setTimeout(r, 600));
           continue;
         } else if (response.status === 404) {
           continue;
         } else {
-          // Invalid API key or malformed request, stop trying
           break;
         }
       }
@@ -250,42 +134,22 @@ Example structure:
       const data = await response.json();
       const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-      if (!rawText) {
-        console.warn(`[AEO Server] Empty response from model ${model}, trying next...`);
-        continue;
-      }
+      if (!rawText) continue;
 
       try {
         parsedQnA = JSON.parse(rawText);
-        usedModel = model;
-        console.log(`[AEO Server] Successfully generated Q&A using model: ${model}`);
         break;
-      } catch (parseErr) {
-        console.warn(`[AEO Server] Failed to parse JSON from ${model}:`, rawText.slice(0, 100));
+      } catch {
         continue;
       }
     } catch (err) {
-      console.warn(`[AEO Server] Network error with ${model}:`, err.message);
       lastErr = err.message;
     }
   }
 
   if (parsedQnA && typeof parsedQnA === 'object' && Object.keys(parsedQnA).length > 0) {
-    return res.json({
-      success: true,
-      qna: parsedQnA,
-      source: 'gemini',
-      model: usedModel,
-    });
+    return res.json({ success: true, qna: parsedQnA, source: 'gemini' });
   }
 
-  return res.status(503).json({
-    error: `Gemini API error: ${lastErr || 'All candidate models failed or unavailable.'}`,
-  });
-});
-
-app.listen(PORT, () => {
-  console.log(`\n🚀 AEO Proxy Server running at http://localhost:${PORT}`);
-  console.log(`   Health check: http://localhost:${PORT}/api/health`);
-  console.log(`   Usage: GET http://localhost:${PORT}/api/fetch?url=<encoded-url>\n`);
-});
+  return res.status(503).json({ error: `Gemini API error: ${lastErr || 'All candidate models failed or unavailable.'}` });
+}

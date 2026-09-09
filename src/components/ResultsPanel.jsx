@@ -57,7 +57,7 @@ export default function ResultsPanel({ results, onReset }) {
       {/* Results header */}
       <div className="results-header">
         <div>
-          <h2 className="results-title">Analysis Complete</h2>
+          <h2 className="results-title">Schemas Generated</h2>
           <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
             <span className="results-url-tag" title={meta.canonicalUrl}>
               <Link size={12} />
@@ -74,10 +74,10 @@ export default function ResultsPanel({ results, onReset }) {
             id="reset-btn"
             className="btn-secondary"
             onClick={onReset}
-            aria-label="Analyze another URL"
+            aria-label="Generate schemas for another URL"
           >
             <RefreshCw size={14} />
-            New Analysis
+            New URL
           </button>
           <button
             id="download-html-btn"
@@ -100,16 +100,19 @@ export default function ResultsPanel({ results, onReset }) {
         </div>
       </div>
 
-      {/* AEO Score */}
-      <AEOScoreCard score={score} />
-
-      <div className="section-divider" />
+      {/* AEO Score — only shown if score calculation was performed */}
+      {score && (
+        <>
+          <AEOScoreCard score={score} />
+          <div className="section-divider" />
+        </>
+      )}
 
       {/* Schema Cards */}
       <div className="schemas-section">
         <div className="schemas-header">
           <h3 className="schemas-title">
-            Generated Schemas
+            Generated Schemas (with Q&amp;A)
             <span className="schemas-count-badge">{schemas.length}</span>
           </h3>
         </div>
@@ -123,8 +126,8 @@ export default function ResultsPanel({ results, onReset }) {
         ))}
       </div>
 
-      {/* Tips / Quick Wins */}
-      {score.percentage < 60 && (
+      {/* Tips / Quick Wins — only shown if score is available */}
+      {score && score.percentage < 60 && (
         <div className="quick-wins-section">
           <h4 className="quick-wins-title">
             💡 Quick Wins to Improve Your AEO Score

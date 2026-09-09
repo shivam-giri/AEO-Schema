@@ -1,34 +1,44 @@
-import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
-const STEPS = [
-  { id: 'fetch',    label: 'Fetching page content…'    },
-  { id: 'parse',    label: 'Parsing HTML structure…'    },
-  { id: 'detect',   label: 'Detecting content type…'   },
-  { id: 'generate', label: 'Generating AEO schemas…'   },
-  { id: 'score',    label: 'Calculating AEO score…'    },
+const SCHEMA_STEPS = [
+  { id: 'fetch', label: 'Fetching page content…' },
+  { id: 'parse', label: 'Parsing HTML structure…' },
+  { id: 'detect', label: 'Detecting content signals…' },
+  { id: 'generate', label: 'Synthesizing AEO schemas…' },
+  { id: 'qa', label: 'Generating Q&A pairs…' },
 ];
 
-export default function AnalysisLoader({ step: currentStep }) {
-  const currentIdx = STEPS.findIndex(s => s.id === currentStep);
+const AUDIT_STEPS = [
+  { id: 'fetch', label: 'Fetching page content…' },
+  { id: 'parse', label: 'Parsing HTML structure…' },
+  { id: 'detect', label: 'Detecting content signals…' },
+  { id: 'generate', label: 'Auditing page content & structure…' },
+  { id: 'score', label: 'Calculating AEO readiness score…' },
+];
+
+export default function AnalysisLoader({ step: currentStep, mode = 'schema' }) {
+  const steps = mode === 'schema' ? SCHEMA_STEPS : AUDIT_STEPS;
+  const currentIdx = steps.findIndex(s => s.id === currentStep);
 
   return (
-    <section className="loader-section" aria-live="polite" aria-label="Analyzing page">
+    <section className="loader-section" aria-live="polite" aria-label={mode === 'schema' ? 'Generating schemas' : 'Analyzing page'}>
       <div className="loader-orb">
         <div className="loader-orb-inner">
           <Loader2 size={36} />
         </div>
       </div>
 
-      <h2 className="loader-title">Analyzing your page</h2>
+      <h2 className="loader-title">
+        {mode === 'schema' ? 'Generating AEO Schemas' : 'Analyzing Your Page'}
+      </h2>
       <p className="loader-subtitle">This usually takes a few seconds…</p>
 
       <div className="loader-steps" role="list">
-        {STEPS.map((step, i) => {
+        {steps.map((step, i) => {
           const status =
             i < currentIdx ? 'done' :
-            i === currentIdx ? 'active' :
-            'pending';
+              i === currentIdx ? 'active' :
+                'pending';
 
           return (
             <div

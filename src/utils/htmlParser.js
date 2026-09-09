@@ -118,8 +118,21 @@ export function extractMeta(doc, pageUrl) {
  * Returns: 'article' | 'faq' | 'howto' | 'homepage' | 'product' | 'generic'
  */
 export function detectPageType(doc, meta) {
+  const url = (meta.canonicalUrl || '').toLowerCase();
+
+  // 1. Check if URL is root homepage FIRST before scanning generic menu links
+  let isRootPath = false;
+  try {
+    const parsed = new URL(meta.canonicalUrl || 'http://dummy.com');
+    const p = parsed.pathname.replace(/\/+$/, '');
+    isRootPath = (!p || p === '' || p === '/index.html' || p === '/home' || p === '/default.aspx' || p === '/index.php');
+  } catch {
+    const path = url.split('//')[1]?.split('/').slice(1).join('/') || '';
+    isRootPath = (!path || path === '' || path === 'index.html' || path === 'home');
+  }
+  if (isRootPath) return 'homepage';
+
   const ogType = meta.type.toLowerCase();
-  const url = meta.canonicalUrl.toLowerCase();
 
   // Check og:type
   if (ogType === 'article') return 'article';
@@ -143,7 +156,7 @@ export function detectPageType(doc, meta) {
   );
 
   const hasBODSignals = !!(
-    doc.querySelector('.director, .board-member, .leadership-team, [class*="director"]') ||
+    doc.querySelector('.director, .board-member, .leadership-team, [class*="director"], [class*="bod"], .bod-item, .bod-inner') ||
     /\b(board of directors|executive committee|leadership team|board member)\b/i.test(body)
   );
 
@@ -161,9 +174,6 @@ export function detectPageType(doc, meta) {
   if (hasBODSignals) return 'bod';
   if (hasFAQPatterns.found) return 'faq';
   if (hasArticleSignals) return 'article';
-
-  const path = url.split('//')[1]?.split('/').slice(1).join('/') || '';
-  if (!path || path === '' || path === 'index.html') return 'homepage';
 
   return 'generic';
 }
@@ -308,13 +318,55 @@ export function extractOrganization(doc, meta, pageUrl) {
     } catch { /* ignore */ }
   }
 
-  const name =
-    jsonLdOrg?.name ||
-    jsonLdOrg?.legalName ||
-    meta.siteName ||
-    getText(doc, '[itemprop="name"]') ||
-    doc.title?.split(/[-|–]/).pop()?.trim() ||
-    '';
+  // Extract clean brand/organization name safely
+  let name = jsonLdOrg?.name || jsonLdOrg?.legalName || meta.siteName || '';
+  if (/^(home|welcome|index)$/i.test(name.trim())) name = '';
+
+  if (!name) {
+    const itemPropName = getText(doc, 'header [itemprop="name"], nav [itemprop="name"], [itemprop="name"]');
+    if (itemPropName && !/^(home|welcome)$/i.test(itemPropName.trim()) && itemPropName.length <= 40) {
+      name = itemPropName.trim();
+    }
+  }
+
+  if (!name) {
+    // Smart split title without breaking hyphenated words like Rolls-Royce, Mercedes-Benz, Coca-Cola
+    const fullTitle = doc.title?.trim() || meta?.title?.trim() || '';
+    if (fullTitle) {
+      const parts = fullTitle
+        .split(/\s*\|\s*|\s*[—•]\s*|\s*::\s*|\s+[-–]\s+/)
+        .map(p => p.trim())
+        .filter(Boolean);
+      const nonGeneric = parts.filter(p => !/^(home|welcome|official\s+site|index)$/i.test(p));
+
+      if (nonGeneric.length > 0) {
+        const lastPart = nonGeneric[nonGeneric.length - 1];
+        const firstPart = nonGeneric[0];
+        if (lastPart.length <= 35 && !lastPart.includes(':')) {
+          name = lastPart;
+        } else if (firstPart.length <= 35 && !firstPart.includes(':')) {
+          name = firstPart;
+        } else if (firstPart.includes(':')) {
+          const prefix = firstPart.split(':')[0].trim();
+          if (prefix && prefix.length <= 35 && !/^(home|welcome)$/i.test(prefix)) {
+            name = prefix;
+          }
+        } else {
+          name = lastPart;
+        }
+      }
+    }
+  }
+
+  if (!name || /^(home|welcome)$/i.test(name)) {
+    try {
+      const host = new URL(pageUrl).hostname.replace(/^www\./i, '');
+      const mainHost = host.split('.')[0];
+      if (mainHost) {
+        name = mainHost.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-');
+      }
+    } catch {}
+  }
 
   const logo =
     (typeof jsonLdOrg?.logo === 'string' ? jsonLdOrg.logo : (jsonLdOrg?.logo?.url || jsonLdOrg?.logo?.contentUrl)) ||
@@ -484,23 +536,17 @@ function detectEvents(doc) {
     } catch { return false; }
   });
 
-  // DOM class/id signals
-  const hasEventEl = !!(
-    doc.querySelector(
-      '[class*="event"], [id*="event"], [class*="calendar"], [id*="calendar"], ' +
-      '[class*="upcoming"], [class*="schedule"], [itemtype*="Event"]'
-    )
+  // Dedicated event cards or listing elements
+  const eventEl = doc.querySelector(
+    '.event-item, .event-card, [class*="event-item"], [class*="event-listing"], [itemtype*="Event"]'
   );
 
-  // Keyword signals in body text
+  // Keyword signals in body text paired with a date element
   const body = doc.body?.textContent?.toLowerCase() || '';
-  const eventKeywords = /\b(upcoming events?|register now|add to calendar|rsvp|venue|event date|webinar|conference|seminar|workshop)\b/i;
-  const hasEventKeywords = eventKeywords.test(body);
+  const eventKeywords = /\b(upcoming events?|register now|add to calendar|webinar registration|conference agenda)\b/i;
+  const hasEventKeywords = eventKeywords.test(body) && !!doc.querySelector('time[datetime], .event-date, [class*="event-date"]');
 
-  // Cluster of time[datetime] elements is a strong indicator
-  const timeEls = doc.querySelectorAll('time[datetime]').length;
-
-  return hasEventSchema || hasEventJsonLD || hasEventEl || hasEventKeywords || timeEls >= 3;
+  return hasEventSchema || hasEventJsonLD || !!eventEl || hasEventKeywords;
 }
 
 /**
@@ -538,25 +584,34 @@ export function detectAllContentSignals(doc, meta, pageUrl) {
   const hasHowTo = howtoSteps.length >= 2;
 
   // Board of Directors / Leadership
-  const hasBOD = !!(
-    doc.querySelector(
-      '.director, .board-member, .leadership-team, [class*="director"], ' +
-      '[class*="leadership"], [class*="board-member"], [class*="governance"]'
-    ) ||
-    /\b(board of directors|executive committee|leadership team|board member|chief executive|chief financial|chief operating)\b/i.test(body)
-  );
+  // On homepages, require actual member cards (not just a nav link to the board)
+  const hasBOD = isHomepage
+    ? doc.querySelectorAll('.director, .board-member, .leadership-team, .bod-item, .bod-inner').length >= 3
+    : !!(
+        doc.querySelector(
+          '.director, .board-member, .leadership-team, [class*="director"], ' +
+          '[class*="leadership"], [class*="board-member"], [class*="governance"], ' +
+          '[class*="bod"], .bod-item, .bod-inner'
+        ) ||
+        /\b(board of directors|executive committee|leadership team|board member)\b/i.test(body) ||
+        /\b(leadership\/board|board-of-directors|leadership-team)\b/i.test(pageUrl)
+      );
 
   // News / Press Release
-  const hasNews = !!(
-    /\b(news-media|press-release|press|announcements)\b/i.test(pageUrl) ||
-    doc.querySelector('.press-release, .news-item, .media-release, [class*="press-release"]') ||
-    /\b(press release|media contact|for immediate release|newsroom)\b/i.test(body)
-  );
+  // On homepages, require actual news or press release elements
+  const hasNews = isHomepage
+    ? !!doc.querySelector('.press-release, .news-item, .media-release, [class*="press-release"], [class*="news-card"]')
+    : !!(
+        /\b(news-media|press-release|press|announcements)\b/i.test(pageUrl) ||
+        doc.querySelector('.press-release, .news-item, .media-release, [class*="press-release"]') ||
+        /\b(press release|media contact|for immediate release|newsroom)\b/i.test(body)
+      );
 
   // Product / e-commerce
+  // Do not trigger on "share price" or financial terms
   const hasProduct = !!(
-    doc.querySelector('[itemprop="price"], [itemprop="offers"], .price, [class*="add-to-cart"], [class*="buy-now"]') ||
-    /\b(add to cart|buy now|in stock|out of stock|price|checkout)\b/i.test(body)
+    doc.querySelector('[itemtype*="Product"], [itemprop="offers"], [class*="add-to-cart"], [class*="buy-now"]') ||
+    (/\b(add to cart|buy now|in stock)\b/i.test(body) && /\b(price|\$|£|€)\b/i.test(body))
   );
 
   // Contact information
