@@ -1,107 +1,94 @@
 /**
  * schemaGenerator.js
- * Orchestrates HTML parsing and generates targeted AEO-optimized JSON-LD schemas
- * based on selected/detected Page Type, with fair page-type-tailored AEO scoring.
+ * Signal-driven AEO schema generation.
+ *
+ * Instead of a fixed page-type → schema matrix, this module:
+ *   1. Calls detectAllContentSignals() to scan every content type on the page.
+ *   2. Accumulates schemas for EVERY signal found (FAQ, BOD, Events, Article, etc.)
+ *   3. Always includes Organization + WebSite as the brand foundation.
+ *
+ * This means a homepage with a FAQ section and a BOD listing will correctly get
+ * Organization + WebSite + FAQPage + ItemList — not just the homepage defaults.
  */
 
 import {
   parseHTML,
   extractMeta,
-  detectPageType,
-  checkFAQPatterns,
-  checkHowToPatterns,
-  extractOrganization,
-  extractBreadcrumbs,
-  extractArticleBody,
-  extractProduct,
+  detectAllContentSignals,
 } from '../utils/htmlParser.js';
 
 /**
- * Main entry point: analyze HTML and generate targeted AEO schemas for the specified page type.
- * @param {string} html - Raw HTML string
- * @param {string} pageUrl - The URL of the page
- * @param {string} targetPageType - User-selected page type ('auto' | 'homepage' | 'article' | 'product' | 'faq' | 'howto')
- * @returns {{ schemas: SchemaResult[], score: AEOScore, meta: PageMeta, pageType: string }}
+ * Main entry point: analyze HTML and generate AEO schemas for ALL content found.
+ * @param {string} html     - Raw HTML string
+ * @param {string} pageUrl  - The URL of the page
+ * @returns {{ schemas: SchemaResult[], score: AEOScore, meta: PageMeta, pageType: string, signals: ContentSignals }}
  */
-export function generateAEOSchemas(html, pageUrl, targetPageType = 'auto') {
+export function generateAEOSchemas(html, pageUrl) {
   const doc  = parseHTML(html);
   const meta = extractMeta(doc, pageUrl);
 
-  // Determine effective page type (user selection overrides auto-detection)
-  const detectedType = detectPageType(doc, meta);
-  const effectivePageType = (targetPageType && targetPageType !== 'auto')
-    ? targetPageType
-    : detectedType;
+  // Single source of truth — all content signals
+  const signals = detectAllContentSignals(doc, meta, pageUrl);
+  const { pageType, isHomepage, faqData, howtoSteps, org, breadcrumbs, articleBody, productData } = signals;
 
   const schemas = [];
 
-  // Extract shared content signals
-  const org         = extractOrganization(doc, meta, pageUrl);
-  const breadcrumbs = extractBreadcrumbs(doc, pageUrl);
-  const faqData     = checkFAQPatterns(doc);
-  const howtoSteps  = checkHowToPatterns(doc);
-  const articleBody = extractArticleBody(doc);
-  const productData = extractProduct(doc, meta);
+  // ── Foundation: always present on every page ───────────────────────────────
+  schemas.push(generateOrganizationSchema(org, meta, pageUrl));
+  schemas.push(generateWebSiteSchema(meta, pageUrl));
 
-  // ── TARGETED SCHEMA MATRICES BY PAGE TYPE ─────────────────────────────
-
-  if (effectivePageType === 'homepage') {
-    // Homepage: Organization + WebSite (+ optional LocalBusiness if phone/address present)
-    schemas.push(generateOrganizationSchema(org, meta, pageUrl));
-    schemas.push(generateWebSiteSchema(meta, pageUrl));
-    // NO BreadcrumbList on Homepage (home is root, has no parent breadcrumbs)
-
-  } else if (effectivePageType === 'article') {
-    // Article / Blog Post: Article + Organization + BreadcrumbList + FAQPage (if Q&A found)
-    schemas.push(generateArticleSchema(meta, articleBody, pageUrl));
-    schemas.push(generateOrganizationSchema(org, meta, pageUrl));
+  // ── BreadcrumbList: every non-homepage page ────────────────────────────────
+  if (!isHomepage) {
     schemas.push(generateBreadcrumbSchema(breadcrumbs, pageUrl, meta));
-    if (faqData.found) {
-      schemas.push(generateFAQSchema(faqData, doc, meta));
-    }
-    schemas.push(generateWebSiteSchema(meta, pageUrl));
-
-  } else if (effectivePageType === 'news-media') {
-    // News & Media: NewsArticle + Organization + BreadcrumbList + WebSite
-    schemas.push(generateNewsArticleSchema(meta, articleBody, pageUrl));
-    schemas.push(generateOrganizationSchema(org, meta, pageUrl));
-    schemas.push(generateBreadcrumbSchema(breadcrumbs, pageUrl, meta));
-    if (faqData.found) {
-      schemas.push(generateFAQSchema(faqData, doc, meta));
-    }
-    schemas.push(generateWebSiteSchema(meta, pageUrl));
-
-  } else if (effectivePageType === 'contact-us') {
-    // Contact Us Page: Organization (with ContactPoint) + ContactPage + BreadcrumbList
-    schemas.push(generateOrganizationSchema(org, meta, pageUrl));
-    schemas.push(generateContactPageSchema(meta, org, pageUrl));
-    schemas.push(generateBreadcrumbSchema(breadcrumbs, pageUrl, meta));
-
-  } else if (effectivePageType === 'bod') {
-    // Board of Directors / Leadership Page: ItemList of Person + Organization + BreadcrumbList
-    schemas.push(generateBODSchema(doc, org, pageUrl));
-    schemas.push(generateOrganizationSchema(org, meta, pageUrl));
-    schemas.push(generateBreadcrumbSchema(breadcrumbs, pageUrl, meta));
-
-  } else if (effectivePageType === 'faq') {
-    // Dedicated FAQ Page: FAQPage + BreadcrumbList + Organization
-    schemas.push(generateFAQSchema(faqData, doc, meta));
-    schemas.push(generateBreadcrumbSchema(breadcrumbs, pageUrl, meta));
-    schemas.push(generateOrganizationSchema(org, meta, pageUrl));
-
-  } else {
-    // Generic / Fallback Page: Organization + Article + FAQ + BreadcrumbList + WebSite
-    schemas.push(generateOrganizationSchema(org, meta, pageUrl));
-    schemas.push(generateArticleSchema(meta, articleBody, pageUrl));
-    schemas.push(generateFAQSchema(faqData, doc, meta));
-    schemas.push(generateBreadcrumbSchema(breadcrumbs, pageUrl, meta));
-    schemas.push(generateWebSiteSchema(meta, pageUrl));
   }
 
-  // ── AEO Score (Calculated against metrics relevant to effectivePageType) ──
-  const score = calculateAEOScore(meta, faqData, howtoSteps, breadcrumbs, schemas, doc, effectivePageType);
+  // ── Content-signal-driven schemas ─────────────────────────────────────────
 
-  return { schemas, score, meta, pageType: effectivePageType };
+  // BOD / Leadership — checked before Article because a BOD page may also
+  // have article-like meta tags; BOD is the more specific signal
+  if (signals.hasBOD) {
+    schemas.push(generateBODSchema(doc, org, pageUrl));
+  }
+
+  // News / Press Release — checked before generic Article
+  if (signals.hasNews) {
+    schemas.push(generateNewsArticleSchema(meta, articleBody, pageUrl));
+  }
+
+  // Article / editorial content (skip if already added NewsArticle)
+  if (signals.hasArticle && !signals.hasNews) {
+    schemas.push(generateArticleSchema(meta, articleBody, pageUrl));
+  }
+
+  // FAQ / Q&A
+  if (signals.hasFAQ) {
+    schemas.push(generateFAQSchema(faqData, doc, meta));
+  }
+
+  // HowTo / step-by-step guide
+  if (signals.hasHowTo) {
+    schemas.push(generateHowToSchema(meta, howtoSteps));
+  }
+
+  // Events / Calendar
+  if (signals.hasEvents) {
+    schemas.push(generateEventSchema(doc, org, meta, pageUrl));
+  }
+
+  // Product / e-commerce
+  if (signals.hasProduct) {
+    schemas.push(generateProductSchema(productData, pageUrl, meta));
+  }
+
+  // Contact page (only on dedicated contact pages, not every page with a footer email)
+  if (signals.hasContactInfo && pageType === 'contact-us') {
+    schemas.push(generateContactPageSchema(meta, org, pageUrl));
+  }
+
+  // ── AEO Score ──────────────────────────────────────────────────────────────
+  const score = calculateAEOScore(meta, signals, schemas, doc);
+
+  return { schemas, score, meta, pageType, signals };
 }
 
 // ============================================================
@@ -317,7 +304,10 @@ function generateContactPageSchema(meta, org, pageUrl) {
 }
 
 function generateBODSchema(doc, org, pageUrl) {
-  const personEls = Array.from(doc.querySelectorAll('.director, .board, .leadership, .member, .profile, [class*="director"], [class*="leadership"]'));
+  const personEls = Array.from(doc.querySelectorAll(
+    '.director, .board, .leadership, .member, .profile, ' +
+    '[class*="director"], [class*="leadership"], [class*="board-member"], [class*="governance"]'
+  ));
   let persons = personEls.map(el => {
     const name = el.querySelector('h2, h3, h4, .name, [class*="name"]')?.textContent?.trim();
     const title = el.querySelector('.title, .role, [class*="title"], [class*="role"]')?.textContent?.trim();
@@ -460,14 +450,71 @@ function generateProductSchema(product, pageUrl, meta) {
   };
 }
 
+function generateEventSchema(doc, org, meta, pageUrl) {
+  // Try to extract the first event element's name/date from the DOM
+  const eventEl = doc.querySelector('[class*="event"], [itemtype*="Event"]');
+  const eventName =
+    eventEl?.querySelector('h2, h3, h4, .event-title, [class*="event-title"]')?.textContent?.trim() ||
+    meta.title ||
+    'Event';
+
+  const startDate =
+    eventEl?.querySelector('time[datetime]')?.getAttribute('datetime') ||
+    doc.querySelector('time[datetime]')?.getAttribute('datetime') ||
+    new Date().toISOString().split('T')[0];
+
+  const location =
+    eventEl?.querySelector('.venue, .location, [class*="venue"], [class*="location"]')?.textContent?.trim() ||
+    org.address ||
+    '';
+
+  return {
+    type: 'Event',
+    label: 'Event',
+    description: 'Enables rich event results in Google Search and AI engines, including date, venue, and registration',
+    impact: 4,
+    schema: {
+      '@context': 'https://schema.org',
+      '@type': 'Event',
+      name: eventName,
+      description: meta.description || '',
+      startDate,
+      ...(meta.image ? { image: meta.image } : {}),
+      organizer: {
+        '@type': 'Organization',
+        name: org.name || meta.siteName || '',
+        url: org.url || pageUrl,
+      },
+      ...(location ? {
+        location: {
+          '@type': 'Place',
+          name: location,
+          address: { '@type': 'PostalAddress', streetAddress: location },
+        },
+      } : {}),
+      url: meta.canonicalUrl || pageUrl,
+    },
+  };
+}
+
 // ============================================================
-// AEO Score Calculator (Tailored Per Page Type)
+// AEO Score Calculator (Signal-Driven)
 // ============================================================
 
 /**
- * Calculates a fair, page-type-tailored AEO Readiness Score (0–100).
+ * Calculates a fair, signal-driven AEO Readiness Score (0–100).
+ * Metrics are only included when relevant to detected content signals.
+ * @param {Object} meta
+ * @param {ContentSignals} signals
+ * @param {SchemaResult[]} schemas
+ * @param {Document} doc
  */
-export function calculateAEOScore(meta, faqData, howtoSteps, breadcrumbs, schemas, doc, pageType = 'generic') {
+export function calculateAEOScore(meta, signals, schemas, doc) {
+  const { pageType, isHomepage, hasFAQ, hasHowTo, hasBOD, hasArticle, hasNews } = signals;
+  const faqData   = signals.faqData;
+  const howtoSteps = signals.howtoSteps;
+  const breadcrumbs = signals.breadcrumbs;
+
   const allMetrics = [];
 
   // 1. Title tag (10 pts)
@@ -479,7 +526,7 @@ export function calculateAEOScore(meta, faqData, howtoSteps, breadcrumbs, schema
     max: 10,
     status: titleScore === 10 ? 'pass' : titleScore > 0 ? 'warn' : 'fail',
     detail: meta.hasMeta.title ? `Found (${meta.title.length} chars)` : 'Missing — critical for AEO',
-    applicableTo: ['homepage', 'article', 'news-media', 'contact-us', 'bod', 'faq', 'generic'],
+    always: true,
   });
 
   // 2. Meta description (10 pts)
@@ -491,7 +538,7 @@ export function calculateAEOScore(meta, faqData, howtoSteps, breadcrumbs, schema
     max: 10,
     status: descScore === 10 ? 'pass' : descScore > 0 ? 'warn' : 'fail',
     detail: meta.hasMeta.description ? `Found (${meta.description.length} chars)` : 'Missing — AI engines use for context',
-    applicableTo: ['homepage', 'article', 'news-media', 'contact-us', 'bod', 'faq', 'generic'],
+    always: true,
   });
 
   // 3. Open Graph tags (8 pts)
@@ -503,7 +550,7 @@ export function calculateAEOScore(meta, faqData, howtoSteps, breadcrumbs, schema
     max: 8,
     status: ogScore > 0 ? 'pass' : 'fail',
     detail: ogScore > 0 ? 'OG tags present' : 'Missing og:title, og:description',
-    applicableTo: ['homepage', 'article', 'news-media', 'contact-us', 'bod', 'faq', 'generic'],
+    always: true,
   });
 
   // 4. Canonical URL (7 pts)
@@ -515,7 +562,7 @@ export function calculateAEOScore(meta, faqData, howtoSteps, breadcrumbs, schema
     max: 7,
     status: canonScore > 0 ? 'pass' : 'fail',
     detail: canonScore > 0 ? 'Canonical link found' : 'Missing — may cause duplicate content',
-    applicableTo: ['homepage', 'article', 'news-media', 'contact-us', 'bod', 'faq', 'generic'],
+    always: true,
   });
 
   // 5. Existing schema markup (15 pts)
@@ -528,7 +575,7 @@ export function calculateAEOScore(meta, faqData, howtoSteps, breadcrumbs, schema
     max: 15,
     status: existingScore >= 10 ? 'pass' : existingScore > 0 ? 'warn' : 'fail',
     detail: existingSchemaCount > 0 ? `${existingSchemaCount} schema(s) already implemented` : 'No existing JSON-LD schema found',
-    applicableTo: ['homepage', 'article', 'news-media', 'contact-us', 'bod', 'faq', 'generic'],
+    always: true,
   });
 
   // 6. Robots meta (7 pts)
@@ -540,48 +587,52 @@ export function calculateAEOScore(meta, faqData, howtoSteps, breadcrumbs, schema
     max: 7,
     status: robotsScore === 7 ? 'pass' : robotsScore > 0 ? 'warn' : 'fail',
     detail: meta.hasMeta.robots ? `Robots: ${meta.robots}` : 'Not set (defaults to indexable)',
-    applicableTo: ['homepage', 'article', 'news-media', 'contact-us', 'bod', 'faq', 'generic'],
+    always: true,
   });
 
   // 7. Breadcrumbs (8 pts) — NOT applicable to Homepage
-  const bcScore = breadcrumbs.length >= 2 ? 8 : breadcrumbs.length === 1 ? 4 : 0;
-  allMetrics.push({
-    id: 'breadcrumb',
-    name: 'Breadcrumb Navigation',
-    score: bcScore,
-    max: 8,
-    status: bcScore === 8 ? 'pass' : bcScore > 0 ? 'warn' : 'fail',
-    detail: breadcrumbs.length >= 2 ? `${breadcrumbs.length} breadcrumb levels found` : 'No breadcrumb structure detected',
-    applicableTo: ['article', 'news-media', 'contact-us', 'bod', 'faq', 'generic'],
-  });
+  if (!isHomepage) {
+    const bcScore = breadcrumbs.length >= 2 ? 8 : breadcrumbs.length === 1 ? 4 : 0;
+    allMetrics.push({
+      id: 'breadcrumb',
+      name: 'Breadcrumb Navigation',
+      score: bcScore,
+      max: 8,
+      status: bcScore === 8 ? 'pass' : bcScore > 0 ? 'warn' : 'fail',
+      detail: breadcrumbs.length >= 2 ? `${breadcrumbs.length} breadcrumb levels found` : 'No breadcrumb structure detected',
+      always: false,
+    });
+  }
 
-  // 8. FAQ content (15 pts) — Applicable to FAQ, Article, Generic
-  const faqScore = faqData.found ? Math.min(15, faqData.pairs.length * 3) : 0;
-  allMetrics.push({
-    id: 'faq',
-    name: 'FAQ / Q&A Content',
-    score: faqScore,
-    max: 15,
-    status: faqScore >= 12 ? 'pass' : faqScore > 0 ? 'warn' : 'fail',
-    detail: faqData.found ? `${faqData.pairs.length} Q&A pairs found — great for AI snippets` : 'No FAQ patterns detected',
-    applicableTo: ['faq', 'article', 'news-media', 'generic'],
-  });
+  // 8. FAQ content (15 pts) — only when FAQ signals detected
+  if (hasFAQ) {
+    const faqScore = faqData.found ? Math.min(15, faqData.pairs.length * 3) : 0;
+    allMetrics.push({
+      id: 'faq',
+      name: 'FAQ / Q&A Content',
+      score: faqScore,
+      max: 15,
+      status: faqScore >= 12 ? 'pass' : faqScore > 0 ? 'warn' : 'fail',
+      detail: faqData.found ? `${faqData.pairs.length} Q&A pairs found — great for AI snippets` : 'No FAQ patterns detected',
+      always: false,
+    });
+  }
 
-  // 9. Author / Date / Leadership signals (8 pts)
-  const eeatScore = (meta.hasMeta.author ? 4 : 0) + (meta.hasMeta.publishedDate ? 4 : 0);
-  allMetrics.push({
-    id: 'eeat',
-    name: 'Author / Governance Signals',
-    score: eeatScore,
-    max: 8,
-    status: eeatScore === 8 ? 'pass' : eeatScore > 0 ? 'warn' : 'fail',
-    detail: `Author: ${meta.hasMeta.author ? '✓' : '✗'} · Date: ${meta.hasMeta.publishedDate ? '✓' : '✗'}`,
-    applicableTo: ['article', 'news-media', 'bod', 'generic'],
-  });
+  // 9. Author / Date signals (8 pts) — only for editorial content
+  if (hasArticle || hasNews || hasBOD) {
+    const eeatScore = (meta.hasMeta.author ? 4 : 0) + (meta.hasMeta.publishedDate ? 4 : 0);
+    allMetrics.push({
+      id: 'eeat',
+      name: 'Author / Governance Signals',
+      score: eeatScore,
+      max: 8,
+      status: eeatScore === 8 ? 'pass' : eeatScore > 0 ? 'warn' : 'fail',
+      detail: `Author: ${meta.hasMeta.author ? '✓' : '✗'} · Date: ${meta.hasMeta.publishedDate ? '✓' : '✗'}`,
+      always: false,
+    });
+  }
 
-  // Filter metrics to ONLY those applicable to the effective page type
-  const metrics = allMetrics.filter(m => m.applicableTo.includes(pageType));
-
+  const metrics = allMetrics;
   const total    = metrics.reduce((sum, m) => sum + m.score, 0);
   const maxTotal = metrics.reduce((sum, m) => sum + m.max, 0);
   const percentage = Math.round((total / maxTotal) * 100);

@@ -463,3 +463,138 @@ export function extractProduct(doc, meta) {
 
   return { name, price, currency, availability, brand, description, image: meta.image };
 }
+
+/**
+ * Detect event/calendar content signals on the page.
+ * @param {Document} doc
+ * @returns {boolean}
+ */
+function detectEvents(doc) {
+  // Schema.org Event microdata or JSON-LD
+  const hasEventSchema = !!doc.querySelector('[itemtype*="schema.org/Event"]');
+  const jsonldScripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
+  const hasEventJsonLD = jsonldScripts.some(s => {
+    try {
+      const p = JSON.parse(s.textContent);
+      const items = Array.isArray(p) ? p : [p];
+      return items.some(i => {
+        const types = Array.isArray(i?.['@type']) ? i['@type'] : [i?.['@type']];
+        return types.some(t => typeof t === 'string' && /^event/i.test(t));
+      });
+    } catch { return false; }
+  });
+
+  // DOM class/id signals
+  const hasEventEl = !!(
+    doc.querySelector(
+      '[class*="event"], [id*="event"], [class*="calendar"], [id*="calendar"], ' +
+      '[class*="upcoming"], [class*="schedule"], [itemtype*="Event"]'
+    )
+  );
+
+  // Keyword signals in body text
+  const body = doc.body?.textContent?.toLowerCase() || '';
+  const eventKeywords = /\b(upcoming events?|register now|add to calendar|rsvp|venue|event date|webinar|conference|seminar|workshop)\b/i;
+  const hasEventKeywords = eventKeywords.test(body);
+
+  // Cluster of time[datetime] elements is a strong indicator
+  const timeEls = doc.querySelectorAll('time[datetime]').length;
+
+  return hasEventSchema || hasEventJsonLD || hasEventEl || hasEventKeywords || timeEls >= 3;
+}
+
+/**
+ * Scan the full page and return a flat signals object describing every content
+ * type present. This is the single source of truth consumed by both
+ * schemaGenerator.js and auditAnalyzer.js.
+ *
+ * @param {Document} doc - Parsed DOM document
+ * @param {Object}   meta - Result of extractMeta()
+ * @param {string}   pageUrl
+ * @returns {ContentSignals}
+ */
+export function detectAllContentSignals(doc, meta, pageUrl) {
+  const body = doc.body?.textContent?.toLowerCase() || '';
+
+  // ── Primary page type (URL + DOM heuristics) ──────────────────────────────
+  const pageType = detectPageType(doc, meta);
+  const isHomepage = pageType === 'homepage';
+
+  // ── Individual content signals ─────────────────────────────────────────────
+
+  // Article / editorial content
+  const hasArticle = !!(
+    doc.querySelector('article, [itemprop="articleBody"], .post-content, .entry-content, .article-body') ||
+    meta.datePublished ||
+    meta.author
+  );
+
+  // FAQ / Q&A content
+  const faqData = checkFAQPatterns(doc);
+  const hasFAQ = faqData.found;
+
+  // HowTo / step-by-step content
+  const howtoSteps = checkHowToPatterns(doc);
+  const hasHowTo = howtoSteps.length >= 2;
+
+  // Board of Directors / Leadership
+  const hasBOD = !!(
+    doc.querySelector(
+      '.director, .board-member, .leadership-team, [class*="director"], ' +
+      '[class*="leadership"], [class*="board-member"], [class*="governance"]'
+    ) ||
+    /\b(board of directors|executive committee|leadership team|board member|chief executive|chief financial|chief operating)\b/i.test(body)
+  );
+
+  // News / Press Release
+  const hasNews = !!(
+    /\b(news-media|press-release|press|announcements)\b/i.test(pageUrl) ||
+    doc.querySelector('.press-release, .news-item, .media-release, [class*="press-release"]') ||
+    /\b(press release|media contact|for immediate release|newsroom)\b/i.test(body)
+  );
+
+  // Product / e-commerce
+  const hasProduct = !!(
+    doc.querySelector('[itemprop="price"], [itemprop="offers"], .price, [class*="add-to-cart"], [class*="buy-now"]') ||
+    /\b(add to cart|buy now|in stock|out of stock|price|checkout)\b/i.test(body)
+  );
+
+  // Contact information
+  const hasContactInfo = !!(
+    doc.querySelector('a[href^="tel:"], a[href^="mailto:"], .contact-form, [action*="contact"]') ||
+    /\b(contact us|get in touch|headquarters|office address|phone number|email us)\b/i.test(body)
+  );
+
+  // Events / Calendar
+  const hasEvents = detectEvents(doc);
+
+  // ── Extracted data (for schema generators) ────────────────────────────────
+  const org         = extractOrganization(doc, meta, pageUrl);
+  const breadcrumbs = extractBreadcrumbs(doc, pageUrl);
+  const articleBody = extractArticleBody(doc);
+  const productData = extractProduct(doc, meta);
+
+  return {
+    // Primary classification
+    pageType,
+    isHomepage,
+
+    // Content signals (boolean)
+    hasArticle,
+    hasFAQ,
+    hasHowTo,
+    hasBOD,
+    hasNews,
+    hasProduct,
+    hasContactInfo,
+    hasEvents,
+
+    // Rich extracted data
+    faqData,
+    howtoSteps,
+    org,
+    breadcrumbs,
+    articleBody,
+    productData,
+  };
+}

@@ -1,13 +1,17 @@
 /**
  * auditAnalyzer.js
- * Rebuilt to match 4-Pillar Answer Engine Audit scoring methodology.
+ * 4-Pillar Answer Engine Audit — Content-Signal-Driven.
  *
  * Formula: Schema Markup (30%) + Content Structure (25%) + Technical SEO (25%) + E-E-A-T (20%)
- * Each check is Pass/Fail. Category score = avg of checks (0–100).
- * Threshold for calculated scores (readability, speed, searchability): 65+
+ * Each check is Pass / Fail / N/A. Category score = avg of non-NA checks (0–100).
+ *
+ * The Schema Markup pillar is now fully signal-driven:
+ * Instead of a fixed page-type matrix, it detects every content type on the page
+ * (FAQ, BOD, Events, Article, News, etc.) and generates targeted checks for each.
+ * Content types not present on the page are marked N/A — not Fail.
  */
 
-import { parseHTML, extractMeta, getAllText, getAttr, detectPageType } from '../utils/htmlParser.js';
+import { parseHTML, extractMeta, getAllText, getAttr, detectAllContentSignals } from '../utils/htmlParser.js';
 import { calculateReadability } from '../utils/readabilityScore.js';
 
 export const PRIORITY = { HIGH: 'high', MEDIUM: 'medium', LOW: 'low' };
@@ -120,25 +124,23 @@ function getBodyText(doc) {
 }
 
 // ─── Main entry point ─────────────────────────────────────────────────────────
-export function runFullAudit(html, pageUrl, targetPageType = 'auto') {
+export function runFullAudit(html, pageUrl) {
   const doc      = parseHTML(html);
   const meta     = extractMeta(doc, pageUrl);
   const bodyText = getBodyText(doc);
   const schemas  = detectSchemaTypes(doc);
-  const readabilityScore  = computeReadabilityScore(doc);
+  const readabilityScore   = computeReadabilityScore(doc);
   const searchabilityScore = computeSearchabilityScore(doc, meta);
-  const speedScores = computePageSpeedScore(doc);
+  const speedScores        = computePageSpeedScore(doc);
 
-  // Determine effective page type
-  const detectedType = detectPageType(doc, meta);
-  const effectivePageType = (targetPageType && targetPageType !== 'auto')
-    ? targetPageType
-    : detectedType;
+  // Single source of truth — all content signals
+  const signals = detectAllContentSignals(doc, meta, pageUrl);
+  const { pageType } = signals;
 
-  const schemaPillar    = auditSchemaPillar(doc, schemas, meta, effectivePageType);
+  const schemaPillar    = auditSchemaPillar(doc, schemas, signals);
   const contentPillar   = auditContentPillar(doc, meta, bodyText, readabilityScore, searchabilityScore);
   const technicalPillar = auditTechnicalPillar(doc, meta, pageUrl, speedScores);
-  const eeatPillar      = auditEEATPillar(doc, meta, bodyText, schemas, pageUrl, effectivePageType);
+  const eeatPillar      = auditEEATPillar(doc, meta, bodyText, schemas, pageUrl, signals);
   const uxPillar        = auditUXPillar(doc, meta, bodyText, searchabilityScore, speedScores);
 
   const pillars = [schemaPillar, contentPillar, technicalPillar, eeatPillar];
@@ -152,15 +154,15 @@ export function runFullAudit(html, pageUrl, targetPageType = 'auto') {
   );
 
   let grade, gradeClass;
-  if (overallScore >= 80) { grade = 'Excellent'; gradeClass = 'grade-excellent'; }
+  if (overallScore >= 80)      { grade = 'Excellent'; gradeClass = 'grade-excellent'; }
   else if (overallScore >= 65) { grade = 'Good';      gradeClass = 'grade-good';      }
   else if (overallScore >= 40) { grade = 'Fair';      gradeClass = 'grade-fair';      }
   else                         { grade = 'Poor';      gradeClass = 'grade-poor';      }
 
-  // All recommendations sorted by priority
+  // All recommendations sorted by priority (exclude N/A items)
   const allRecommendations = pillars
     .concat([uxPillar])
-    .flatMap(p => p.checks.filter(c => !c.passed))
+    .flatMap(p => p.checks.filter(c => !c.passed && !c.isNA))
     .sort((a, b) => {
       const order = { high: 0, medium: 1, low: 2 };
       return order[a.priority] - order[b.priority];
@@ -186,17 +188,27 @@ export function runFullAudit(html, pageUrl, targetPageType = 'auto') {
     readabilityScore,
     searchabilityScore,
     speedScores,
-    pageType: effectivePageType,
-    selectedPageType: targetPageType,
-    effectivePageType,
+    pageType,
+    signals,
   };
 }
 
-// ─── Pillar: Schema Markup (30%) ─────────────────────────────────────────────
-function auditSchemaPillar(doc, schemas, meta, pageType = 'generic') {
+// ─── Pillar: Schema Markup (30%) — Signal-Driven ─────────────────────────────
+/**
+ * Generates a targeted check for each content type detected on the page.
+ * Content types not present are marked N/A (not Fail), preventing false negatives.
+ * @param {Document} doc
+ * @param {{ all: string }} schemas - Flat string of all detected schema types
+ * @param {ContentSignals} signals  - Result of detectAllContentSignals()
+ */
+function auditSchemaPillar(doc, schemas, signals) {
   const label = 'Schema Markup';
   const { all } = schemas;
+  const { isHomepage, hasArticle: articleSignal, hasFAQ: faqSignal, hasHowTo: howToSignal,
+          hasBOD: bodSignal, hasNews: newsSignal, hasProduct: productSignal,
+          hasContactInfo: contactSignal, hasEvents: eventSignal, pageType } = signals;
 
+  // Existing schema detection
   const hasOrg        = /\b(organization|localbusiness|corporation|ngo|business|company)\b/.test(all);
   const hasWebsite    = /\bwebsite\b/.test(all);
   const hasArticle    = /\b(article|blogposting|newsarticle|techarticle|webpage|post)\b/.test(all);
@@ -204,142 +216,157 @@ function auditSchemaPillar(doc, schemas, meta, pageType = 'generic') {
   const hasFAQ        = /faqpage|question|qapage|\bfaq\b/.test(all);
   const hasBreadcrumb = /breadcrumblist|breadcrumb/.test(all);
   const hasHowTo      = /howto|howtostep/.test(all);
+  const hasBOD        = /\b(person|itemlist)\b/.test(all);
+  const hasNews       = /\bnewsarticle\b/.test(all);
+  const hasEvent      = /\bevent\b/.test(all);
+  const hasContact    = /\bcontactpage\b/.test(all);
 
-  let checks = [];
+  const checks = [];
 
-  if (pageType === 'homepage') {
-    // ── Homepage Targeted Checks ──────────────────────────────────────────
-    // 1. Organization Schema (Required for Homepage)
-    const orgCheck = hasOrg
-      ? pass('org-schema', 'Organization Schema', 'Organization / Business schema detected — establishes brand identity for AI.', PRIORITY.HIGH, 'Organization schema present')
-      : fail('org-schema', 'Organization Schema', 'PASS: Detects Organization or LocalBusiness in structured markup. None found.', PRIORITY.HIGH, 'Add Organization schema to establish brand identity.', true, 'Organization');
+  // ── 1. Organization — required on EVERY page ──────────────────────────────
+  checks.push(hasOrg
+    ? pass('org-schema', 'Organization Schema',
+        'Organization / Business schema detected — establishes brand identity for AI.',
+        PRIORITY.HIGH, 'Organization schema present')
+    : fail('org-schema', 'Organization Schema',
+        'No Organization or LocalBusiness schema found. Required on every page.',
+        PRIORITY.HIGH, 'Add Organization schema to establish brand identity.', true, 'Organization'));
 
-    // 2. WebSite Schema (Required for Homepage)
-    const websiteCheck = hasWebsite
-      ? pass('website-schema', 'WebSite Schema', 'WebSite schema detected — enables sitelinks and brand search entity in AI.', PRIORITY.MEDIUM, 'WebSite schema present')
-      : fail('website-schema', 'WebSite Schema', 'PASS: Detects WebSite schema in structured markup. None found for Homepage.', PRIORITY.MEDIUM, 'Add WebSite schema with SearchAction for sitelinks eligibility.', true, 'WebSite');
+  // ── 2. WebSite — required on EVERY page ───────────────────────────────────
+  checks.push(hasWebsite
+    ? pass('website-schema', 'WebSite Schema',
+        'WebSite schema detected — enables sitelinks and brand search entity in AI.',
+        PRIORITY.MEDIUM, 'WebSite schema present')
+    : fail('website-schema', 'WebSite Schema',
+        'No WebSite schema found. Required on every page for sitelinks eligibility.',
+        PRIORITY.MEDIUM, 'Add WebSite schema with SearchAction for sitelinks eligibility.', true, 'WebSite'));
 
-    // 3. Breadcrumb Schema (N/A for Homepage)
-    const breadcrumbCheck = na('breadcrumb-schema', 'Breadcrumb Schema', 'N/A for Homepage — Root domain (/) has no parent pages in site hierarchy.', 'Breadcrumbs not required on Homepage');
-
-    // 4. Content Schema (N/A for Homepage)
-    const contentSchemaCheck = na('content-schema', 'Article / Product Schema', 'N/A for Homepage — Organization & WebSite schemas serve as primary brand entity.', 'Homepage schema verified');
-
-    checks = [orgCheck, websiteCheck, breadcrumbCheck, contentSchemaCheck];
-
-  } else if (pageType === 'news-media') {
-    // ── News & Media Targeted Checks ──────────────────────────────────────
-    const newsCheck = /\bnewsarticle\b/.test(all) || hasArticle
-      ? pass('news-schema', 'NewsArticle Schema', 'NewsArticle / Press Release schema detected — enables Google News & AI coverage.', PRIORITY.HIGH, 'NewsArticle schema present')
-      : fail('news-schema', 'NewsArticle Schema', 'PASS: Detects NewsArticle or Article in structured markup. None found.', PRIORITY.HIGH, 'Add NewsArticle schema for press releases and media updates.', true, 'NewsArticle');
-
-    const orgCheck = hasOrg
-      ? pass('org-schema', 'Organization Schema', 'Organization / Publisher schema detected.', PRIORITY.MEDIUM, 'Organization schema present')
-      : fail('org-schema', 'Organization Schema', 'Add Organization schema as press publisher identity.', PRIORITY.MEDIUM, 'Add Organization schema.', true, 'Organization');
-
-    const breadcrumbCheck = hasBreadcrumb
-      ? pass('breadcrumb-schema', 'Breadcrumb Schema', 'BreadcrumbList schema detected.', PRIORITY.MEDIUM, 'Breadcrumb schema present')
-      : fail('breadcrumb-schema', 'Breadcrumb Schema', 'Add BreadcrumbList schema for news section hierarchy.', PRIORITY.MEDIUM, 'Add BreadcrumbList schema.', true, 'BreadcrumbList');
-
-    checks = [newsCheck, orgCheck, breadcrumbCheck];
-
-  } else if (pageType === 'contact-us') {
-    // ── Contact Us Page Targeted Checks ──────────────────────────────────
-    const contactSchemaCheck = /\bcontactpage\b/.test(all) || (hasOrg && /contactpoint|address|telephone/.test(all))
-      ? pass('contact-schema', 'Contact / Organization Schema', 'ContactPage or Organization ContactPoint schema detected — verified corporate channel.', PRIORITY.HIGH, 'ContactPage schema present')
-      : fail('contact-schema', 'Contact / Organization Schema', 'PASS: Detects ContactPage or ContactPoint in structured markup. None found.', PRIORITY.HIGH, 'Add ContactPage schema with telephone, email, and address for trust.', true, 'Organization');
-
-    const breadcrumbCheck = hasBreadcrumb
-      ? pass('breadcrumb-schema', 'Breadcrumb Schema', 'BreadcrumbList schema detected.', PRIORITY.MEDIUM, 'Breadcrumb schema present')
-      : fail('breadcrumb-schema', 'Breadcrumb Schema', 'Add BreadcrumbList schema.', PRIORITY.MEDIUM, 'Add BreadcrumbList schema.', true, 'BreadcrumbList');
-
-    const articleCheck = na('article-schema', 'Article Schema', 'N/A for Contact Page — Corporate contact info is primary entity.', 'Article schema N/A');
-
-    checks = [contactSchemaCheck, breadcrumbCheck, articleCheck];
-
-  } else if (pageType === 'bod') {
-    // ── Board of Directors (BOD) Targeted Checks ─────────────────────────
-    const bodCheck = /\b(person|itemlist)\b/.test(all)
-      ? pass('bod-schema', 'Leadership / Person Schema', 'Person / ItemList schema detected — structured Board of Directors governance.', PRIORITY.HIGH, 'Person / ItemList schema present')
-      : fail('bod-schema', 'Leadership / Person Schema', 'PASS: Detects Person or ItemList schema in structured markup. None found.', PRIORITY.HIGH, 'Add Person schema array for Board of Directors to boost E-E-A-T.', true, 'Organization');
-
-    const orgCheck = hasOrg
-      ? pass('org-schema', 'Organization Schema', 'Organization schema detected.', PRIORITY.MEDIUM, 'Organization schema present')
-      : fail('org-schema', 'Organization Schema', 'Add Organization schema.', PRIORITY.MEDIUM, 'Add Organization schema.', true, 'Organization');
-
-    const breadcrumbCheck = hasBreadcrumb
-      ? pass('breadcrumb-schema', 'Breadcrumb Schema', 'BreadcrumbList schema detected.', PRIORITY.MEDIUM, 'Breadcrumb schema present')
-      : fail('breadcrumb-schema', 'Breadcrumb Schema', 'Add BreadcrumbList schema.', PRIORITY.MEDIUM, 'Add BreadcrumbList schema.', true, 'BreadcrumbList');
-
-    checks = [bodCheck, orgCheck, breadcrumbCheck];
-
-  } else if (pageType === 'faq') {
-    // ── Dedicated FAQ Page Targeted Checks ────────────────────────────────
-    const faqCheck = hasFAQ
-      ? pass('faq-schema', 'FAQ Schema', 'FAQPage schema detected — optimized for voice search and answer engine boxes.', PRIORITY.HIGH, 'FAQ schema present')
-      : fail('faq-schema', 'FAQ Schema', 'PASS: Detects FAQPage in structured markup. None found on dedicated FAQ page.', PRIORITY.HIGH, 'Add FAQPage schema to surface Q&A pairs directly in AI answers.', true, 'FAQPage');
-
-    const breadcrumbCheck = hasBreadcrumb
-      ? pass('breadcrumb-schema', 'Breadcrumb Schema', 'BreadcrumbList schema detected.', PRIORITY.MEDIUM, 'Breadcrumb schema present')
-      : fail('breadcrumb-schema', 'Breadcrumb Schema', 'Add BreadcrumbList schema to map FAQ page location in site hierarchy.', PRIORITY.MEDIUM, 'Add BreadcrumbList schema.', true, 'BreadcrumbList');
-
-    const orgCheck = hasOrg
-      ? pass('org-schema', 'Organization Schema', 'Organization schema detected.', PRIORITY.MEDIUM, 'Organization schema present')
-      : fail('org-schema', 'Organization Schema', 'Add Organization schema to attribute FAQ answers to brand.', PRIORITY.MEDIUM, 'Add Organization schema.', true, 'Organization');
-
-    const articleCheck = na('article-schema', 'Article Schema', 'N/A — Dedicated FAQ page uses FAQPage schema as main entity.', 'FAQ schema is primary');
-
-    checks = [faqCheck, breadcrumbCheck, orgCheck, articleCheck];
-
-  } else if (pageType === 'howto') {
-    // ── HowTo Guide Targeted Checks ───────────────────────────────────────
-    const howtoCheck = hasHowTo
-      ? pass('howto-schema', 'HowTo Schema', 'HowTo schema detected — step-by-step instructions defined for AI.', PRIORITY.HIGH, 'HowTo schema present')
-      : fail('howto-schema', 'HowTo Schema', 'PASS: Detects HowTo in structured markup. None found on tutorial page.', PRIORITY.HIGH, 'Add HowTo schema to highlight step-by-step guides in AI answers.', true, 'HowTo');
-
-    const breadcrumbCheck = hasBreadcrumb
-      ? pass('breadcrumb-schema', 'Breadcrumb Schema', 'BreadcrumbList schema detected.', PRIORITY.MEDIUM, 'Breadcrumb schema present')
-      : fail('breadcrumb-schema', 'Breadcrumb Schema', 'Add BreadcrumbList schema to show guide category path.', PRIORITY.MEDIUM, 'Add BreadcrumbList schema.', true, 'BreadcrumbList');
-
-    const orgCheck = hasOrg
-      ? pass('org-schema', 'Organization Schema', 'Organization schema detected.', PRIORITY.MEDIUM, 'Organization schema present')
-      : fail('org-schema', 'Organization Schema', 'Add Organization schema to attribute guide to authoring organization.', PRIORITY.MEDIUM, 'Add Organization schema.', true, 'Organization');
-
-    const articleCheck = hasArticle
-      ? pass('article-schema', 'Article Schema', 'Article schema detected.', PRIORITY.LOW, 'Article schema present')
-      : na('article-schema', 'Article Schema', 'N/A — HowTo schema serves as primary content entity.', 'HowTo schema active');
-
-    checks = [howtoCheck, breadcrumbCheck, orgCheck, articleCheck];
-
+  // ── 3. BreadcrumbList — required on non-homepage pages ───────────────────
+  if (isHomepage) {
+    checks.push(na('breadcrumb-schema', 'Breadcrumb Schema',
+      'N/A — Homepage is root domain. No parent breadcrumbs exist.',
+      'Breadcrumbs not required on Homepage'));
   } else {
-    // ── Article / Generic Page Targeted Checks ───────────────────────────
-    const articleCheck = hasArticle
-      ? pass('article-schema', 'Article Schema', 'Article / content schema detected — enables AI content understanding.', PRIORITY.HIGH, 'Article schema present')
-      : fail('article-schema', 'Article Schema', 'PASS: Detects Article, BlogPosting, or NewsArticle in structured markup. None found.', PRIORITY.HIGH, 'Add Article or BlogPosting schema to help AI engines understand content.', true, 'Article');
-
-    const breadcrumbCheck = hasBreadcrumb
-      ? pass('breadcrumb-schema', 'Breadcrumb Schema', 'BreadcrumbList schema detected — site hierarchy defined for AI.', PRIORITY.MEDIUM, 'Breadcrumb schema present')
-      : fail('breadcrumb-schema', 'Breadcrumb Schema', 'No Breadcrumb schema detected. Site hierarchy not clearly defined for AI systems.', PRIORITY.MEDIUM, 'Add BreadcrumbList schema for site hierarchy.', true, 'BreadcrumbList');
-
-    const orgCheck = hasOrg
-      ? pass('org-schema', 'Organization Schema', 'Organization / business schema detected — brand identity established.', PRIORITY.MEDIUM, 'Organization schema present')
-      : fail('org-schema', 'Organization Schema', 'Add Organization schema to establish brand identity.', PRIORITY.MEDIUM, 'Add Organization schema.', true, 'Organization');
-
-    const faqCheck = hasFAQ
-      ? pass('faq-schema', 'FAQ Schema', 'FAQPage schema detected — great for voice search & answer boxes.', PRIORITY.MEDIUM, 'FAQ schema present')
-      : fail('faq-schema', 'FAQ Schema', 'PASS: Detects FAQPage in structured markup. None found.', PRIORITY.MEDIUM, 'Add FAQPage schema to capture voice search and answer box placements.', true, 'FAQPage');
-
-    checks = [articleCheck, breadcrumbCheck, orgCheck, faqCheck];
+    checks.push(hasBreadcrumb
+      ? pass('breadcrumb-schema', 'Breadcrumb Schema',
+          'BreadcrumbList schema detected — site hierarchy defined for AI.',
+          PRIORITY.MEDIUM, 'Breadcrumb schema present')
+      : fail('breadcrumb-schema', 'Breadcrumb Schema',
+          'No BreadcrumbList schema detected. Site hierarchy not defined for AI.',
+          PRIORITY.MEDIUM, 'Add BreadcrumbList schema for site hierarchy.', true, 'BreadcrumbList'));
   }
 
+  // ── 4. Article / NewsArticle — only when article/news signals detected ────
+  if (newsSignal) {
+    checks.push(hasNews || hasArticle
+      ? pass('news-schema', 'NewsArticle Schema',
+          'NewsArticle / Article schema detected — enables Google News & AI coverage.',
+          PRIORITY.HIGH, 'NewsArticle schema present')
+      : fail('news-schema', 'NewsArticle Schema',
+          'News/press release content detected but no NewsArticle schema found.',
+          PRIORITY.HIGH, 'Add NewsArticle schema for press releases and media updates.', true, 'NewsArticle'));
+  } else if (articleSignal) {
+    checks.push(hasArticle
+      ? pass('article-schema', 'Article Schema',
+          'Article / content schema detected — enables AI content understanding.',
+          PRIORITY.HIGH, 'Article schema present')
+      : fail('article-schema', 'Article Schema',
+          'Editorial content detected but no Article schema found.',
+          PRIORITY.HIGH, 'Add Article or BlogPosting schema to help AI engines understand content.', true, 'Article'));
+  } else {
+    checks.push(na('article-schema', 'Article Schema',
+      'N/A — No editorial article content detected on this page.',
+      'No article/news content signals found'));
+  }
+
+  // ── 5. FAQPage — only when FAQ signals detected ───────────────────────────
+  if (faqSignal) {
+    checks.push(hasFAQ
+      ? pass('faq-schema', 'FAQ Schema',
+          'FAQPage schema detected — optimized for voice search and answer engine boxes.',
+          PRIORITY.HIGH, 'FAQ schema present')
+      : fail('faq-schema', 'FAQ Schema',
+          'FAQ / Q&A content detected on the page but no FAQPage schema found.',
+          PRIORITY.HIGH, 'Add FAQPage schema to surface Q&A pairs directly in AI answers.', true, 'FAQPage'));
+  } else {
+    checks.push(na('faq-schema', 'FAQ Schema',
+      'N/A — No FAQ or Q&A patterns detected on this page.',
+      'No FAQ content signals found'));
+  }
+
+  // ── 6. HowTo — only when step-by-step signals detected ───────────────────
+  if (howToSignal) {
+    checks.push(hasHowTo
+      ? pass('howto-schema', 'HowTo Schema',
+          'HowTo schema detected — step-by-step instructions defined for AI.',
+          PRIORITY.HIGH, 'HowTo schema present')
+      : fail('howto-schema', 'HowTo Schema',
+          'Step-by-step guide content detected but no HowTo schema found.',
+          PRIORITY.HIGH, 'Add HowTo schema to highlight step-by-step guides in AI answers.', true, 'HowTo'));
+  } else {
+    checks.push(na('howto-schema', 'HowTo Schema',
+      'N/A — No step-by-step guide or tutorial content detected.',
+      'No HowTo content signals found'));
+  }
+
+  // ── 7. Person/ItemList (BOD) — only when leadership signals detected ──────
+  if (bodSignal) {
+    checks.push(hasBOD
+      ? pass('bod-schema', 'Leadership / Person Schema',
+          'Person / ItemList schema detected — structured Board of Directors governance.',
+          PRIORITY.HIGH, 'Person / ItemList schema present')
+      : fail('bod-schema', 'Leadership / Person Schema',
+          'Leadership / Board of Directors content detected but no Person or ItemList schema found.',
+          PRIORITY.HIGH, 'Add Person schema array for Board of Directors to boost E-E-A-T.', true, 'Organization'));
+  } else {
+    checks.push(na('bod-schema', 'Leadership / Person Schema',
+      'N/A — No Board of Directors or leadership content detected.',
+      'No BOD/leadership content signals found'));
+  }
+
+  // ── 8. Event — only when event signals detected ───────────────────────────
+  if (eventSignal) {
+    checks.push(hasEvent
+      ? pass('event-schema', 'Event Schema',
+          'Event schema detected — events indexed for rich results and AI.',
+          PRIORITY.MEDIUM, 'Event schema present')
+      : fail('event-schema', 'Event Schema',
+          'Event / calendar content detected but no Event schema found.',
+          PRIORITY.MEDIUM, 'Add Event schema to enable rich event results in AI engines.', true, 'Event'));
+  } else {
+    checks.push(na('event-schema', 'Event Schema',
+      'N/A — No event or calendar content detected on this page.',
+      'No event content signals found'));
+  }
+
+  // ── 9. ContactPage — only for dedicated contact pages ────────────────────
+  if (pageType === 'contact-us') {
+    checks.push(hasContact
+      ? pass('contact-schema', 'ContactPage Schema',
+          'ContactPage schema detected — verified corporate contact channels established.',
+          PRIORITY.HIGH, 'ContactPage schema present')
+      : fail('contact-schema', 'ContactPage Schema',
+          'Contact page detected but no ContactPage schema found.',
+          PRIORITY.HIGH, 'Add ContactPage schema with telephone, email, and address for AI trust.', true, 'Organization'));
+  } else {
+    checks.push(na('contact-schema', 'ContactPage Schema',
+      'N/A — This is not a dedicated contact page.',
+      'ContactPage schema N/A for this page type'));
+  }
+
+  // Score: only count non-NA checks
   const checksWithPillar = checks.map(c => ({ ...c, pillarLabel: label }));
-  const score = Math.round((checksWithPillar.filter(c => c.passed).length / checksWithPillar.length) * 100);
+  const scoreable = checksWithPillar.filter(c => !c.isNA);
+  const score = scoreable.length > 0
+    ? Math.round((scoreable.filter(c => c.passed).length / scoreable.length) * 100)
+    : 100;
 
   return { id: 'schema', label, score, checks: checksWithPillar, ...PILLAR_WEIGHTS.schema };
 }
 
 // ─── Pillar: Content Structure (25%) ─────────────────────────────────────────
 function auditContentPillar(doc, meta, bodyText, readabilityScore, searchabilityScore) {
+
   const label = 'Content Structure';
 
   // 1. Heading Hierarchy — exactly one H1 AND at least 3 total headings
@@ -535,7 +562,8 @@ function auditTechnicalPillar(doc, meta, pageUrl, speedScores) {
 }
 
 // ─── Pillar: E-E-A-T (20%) ───────────────────────────────────────────────────
-function auditEEATPillar(doc, meta, bodyText, schemas, pageUrl, pageType = 'generic') {
+function auditEEATPillar(doc, meta, bodyText, schemas, pageUrl, signals = {}) {
+  const pageType = signals.pageType || 'generic';
   const label = 'E-E-A-T';
   const { all: schemaAll } = schemas;
 

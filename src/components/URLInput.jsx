@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Globe, Zap, AlertCircle, CheckCircle, Shield, Code2 } from 'lucide-react';
 import { validateUrl } from '../services/fetcher.js';
-import PageTypeSelector from './PageTypeSelector.jsx';
 
 const FEATURES = [
   { icon: Shield, text: 'No sign-up required' },
@@ -13,8 +12,6 @@ export default function URLInput({
   onAnalyze,
   isLoading,
   mode = 'schema',
-  selectedPageType = 'auto',
-  onPageTypeChange,
 }) {
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
@@ -43,11 +40,6 @@ export default function URLInput({
 
   return (
     <div className="url-input-wrapper">
-      <PageTypeSelector
-        selectedType={selectedPageType}
-        onChange={onPageTypeChange}
-        disabled={isLoading}
-      />
 
       <form className="url-form" onSubmit={handleSubmit} id="url-form">
         <div className="url-input-icon">

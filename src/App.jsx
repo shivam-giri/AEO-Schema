@@ -8,6 +8,7 @@ import AuditReport from './components/AuditReport.jsx';
 import ScoringCriteriaPage from './components/ScoringCriteriaPage.jsx';
 import DocumentationPage from './components/DocumentationPage.jsx';
 import QnAPage from './components/QnAPage.jsx';
+import SchemaGenerationPage from './components/SchemaGenerationPage.jsx';
 import { fetchPageHTML } from './services/fetcher.js';
 import { generateAEOSchemas } from './services/schemaGenerator.js';
 import { runFullAudit } from './services/auditAnalyzer.js';
@@ -34,11 +35,11 @@ export default function App() {
     if (hash === '#documentation' || path === '/documentation') return 'documentation';
     if (hash === '#scoring-criteria' || path === '/scoring-criteria') return 'scoring-criteria';
     if (hash === '#qna' || path === '/qna') return 'qna';
+    if (hash === '#schema-generation' || path === '/schema-generation') return 'schema-generation';
     return 'home';
   });
 
   const [mode, setMode] = useState('schema');             // 'schema' | 'audit'
-  const [selectedPageType, setSelectedPageType] = useState('auto'); // 'auto' | 'homepage' | 'article' | 'product' | 'faq' | 'howto'
   const [state, setState] = useState('idle');             // 'idle' | 'loading' | 'results' | 'error'
   const [loaderStep, setLoaderStep] = useState('fetch');
   const [schemaResults, setSchemaResults] = useState(null);
@@ -67,6 +68,8 @@ export default function App() {
         setCurrentView('scoring-criteria');
       } else if (hash === '#qna' || path === '/qna') {
         setCurrentView('qna');
+      } else if (hash === '#schema-generation' || path === '/schema-generation') {
+        setCurrentView('schema-generation');
       } else {
         setCurrentView('home');
       }
@@ -93,6 +96,11 @@ export default function App() {
   const navigateToQnA = useCallback(() => {
     setCurrentView('qna');
     window.history.pushState({}, '', '#qna');
+  }, []);
+
+  const navigateToSchemaGeneration = useCallback(() => {
+    setCurrentView('schema-generation');
+    window.history.pushState({}, '', '#schema-generation');
   }, []);
 
   const navigateHome = useCallback(() => {
@@ -136,14 +144,14 @@ export default function App() {
       await advanceStep('detect');
 
       if (mode === 'schema') {
-        const results = generateAEOSchemas(html, resolvedUrl, selectedPageType);
+        const results = generateAEOSchemas(html, resolvedUrl);
         await advanceStep('generate');
         await advanceStep('score');
         await new Promise(r => setTimeout(r, 400));
         setSchemaResults(results);
 
       } else {
-        const results = runFullAudit(html, resolvedUrl, selectedPageType);
+        const results = runFullAudit(html, resolvedUrl);
         await advanceStep('generate');
         await advanceStep('score');
         await new Promise(r => setTimeout(r, 400));
@@ -156,7 +164,7 @@ export default function App() {
       setErrorMessage(err.message || 'An unexpected error occurred. Please try again.');
       setState('error');
     }
-  }, [mode, selectedPageType]);
+  }, [mode]);
 
   const handleReset = () => {
     setState('idle');
@@ -176,6 +184,7 @@ export default function App() {
           onNavigateToScoringCriteria={navigateToScoringCriteria}
           onNavigateToDocumentation={navigateToDocumentation}
           onNavigateToQnA={navigateToQnA}
+          onNavigateToSchemaGeneration={navigateToSchemaGeneration}
           onNavigateHome={navigateHome}
           currentView={currentView}
           showHeader={state !== 'results'}
@@ -189,6 +198,8 @@ export default function App() {
           <ScoringCriteriaPage onBack={navigateHome} />
         ) : currentView === 'qna' ? (
           <QnAPage onBack={navigateHome} />
+        ) : currentView === 'schema-generation' ? (
+          <SchemaGenerationPage onBack={navigateHome} />
         ) : (
           <>
             {/* Mode selector — visible when not viewing results */}
@@ -205,8 +216,6 @@ export default function App() {
                   onAnalyze={handleAnalyze}
                   isLoading={false}
                   mode={mode}
-                  selectedPageType={selectedPageType}
-                  onPageTypeChange={setSelectedPageType}
                 />
 
                 {state === 'error' && (
@@ -257,7 +266,8 @@ export default function App() {
             AEO Schema Generator — Validate schemas at{' '}
             <a href="https://search.google.com/test/rich-results" target="_blank" rel="noopener noreferrer">
               Google Rich Results Test
-            </a> · <a href="#documentation" onClick={navigateToDocumentation}>How It Works</a> · <a href="#scoring-criteria" onClick={navigateToScoringCriteria}>Scoring Criteria</a>.
+            </a>{' '}·{' '}
+            <a href="#schema-generation" onClick={(e) => { e.preventDefault(); navigateToSchemaGeneration(); }}>Schema Generation</a>.
           </p>
         </footer>
       </div>
