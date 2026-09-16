@@ -1141,6 +1141,25 @@ body {
   background: rgba(16, 185, 129, 0.1) !important;
 }
 
+.copy-btn-wrap { position: relative; display: inline-flex; }
+
+.copy-confirm-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent-success);
+  color: #06210f;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: fadeInDown 0.15s ease;
+  z-index: 2;
+}
+
 .chevron-btn {
   display: flex;
   align-items: center;
@@ -1254,12 +1273,34 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   padding: var(--space-3) var(--space-6);
   background: rgba(255,255,255,0.01);
   border-top: 1px solid var(--color-border);
   font-size: 13px;
   color: var(--text-muted);
   gap: var(--space-3);
+}
+
+.schema-validate-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  color: var(--text-accent);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(17, 255, 204, 0.3);
+  background: rgba(17, 255, 204, 0.08);
+  transition: all var(--transition-fast);
+}
+
+.schema-validate-link:hover {
+  background: rgba(17, 255, 204, 0.18);
+  border-color: var(--text-accent);
 }
 
 .impact-label {
@@ -1428,6 +1469,37 @@ body {
 .rec-count-item.rec-high { color: var(--accent-danger); }
 .rec-count-item.rec-medium { color: var(--accent-warning); }
 .rec-count-item.rec-low { color: var(--accent-success); }
+
+.rec-count-clickable {
+  background: none;
+  border: none;
+  font-family: inherit;
+  padding: 4px 6px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+.rec-count-clickable:hover:not(:disabled) { background: var(--color-surface-3); transform: translateY(-1px); }
+.rec-count-clickable:disabled { cursor: default; opacity: 0.45; }
+
+.audit-categories-toolbar { display: flex; gap: var(--space-4); margin-bottom: var(--space-1); }
+
+.audit-rec-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin-bottom: var(--space-3);
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: var(--accent-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
 
 /* ============================================================
    Audit Tabs

@@ -1,4 +1,5 @@
-import { Download, RefreshCw, Link, Tag } from 'lucide-react';
+import { useState } from 'react';
+import { Download, RefreshCw, Link, Tag, Copy, Check } from 'lucide-react';
 import AEOScoreCard from './AEOScoreCard.jsx';
 import SchemaCard from './SchemaCard.jsx';
 
@@ -15,6 +16,20 @@ const PAGE_TYPE_LABELS = {
 export default function ResultsPanel({ results, onReset, focusType = null }) {
   const { schemas, score, meta, pageType } = results;
   const pageTypeInfo = PAGE_TYPE_LABELS[pageType] || PAGE_TYPE_LABELS.generic;
+  const [copiedAll, setCopiedAll] = useState(false);
+
+  const handleCopyAll = async () => {
+    const scriptTags = schemas
+      .map(s => `<script type="application/ld+json">\n${JSON.stringify(s.schema, null, 2)}\n</script>`)
+      .join('\n\n');
+    try {
+      await navigator.clipboard.writeText(scriptTags);
+      setCopiedAll(true);
+      setTimeout(() => setCopiedAll(false), 2000);
+    } catch {
+      // fallback: no-op — download buttons remain available
+    }
+  };
 
   const handleDownloadAll = () => {
     const allSchemas = schemas.map(s => s.schema);
@@ -80,6 +95,15 @@ export default function ResultsPanel({ results, onReset, focusType = null }) {
             New URL
           </button>
           <button
+            id="copy-all-btn"
+            className="btn-secondary"
+            onClick={handleCopyAll}
+            aria-label="Copy all schemas as script tags"
+          >
+            {copiedAll ? <Check size={14} /> : <Copy size={14} />}
+            {copiedAll ? 'Copied!' : 'Copy All Schemas'}
+          </button>
+          <button
             id="download-html-btn"
             className="btn-secondary"
             onClick={handleDownloadHTML}
@@ -123,6 +147,7 @@ export default function ResultsPanel({ results, onReset, focusType = null }) {
             schemaResult={schema}
             index={i}
             focusType={focusType}
+            pageUrl={meta.canonicalUrl}
           />
         ))}
       </div>

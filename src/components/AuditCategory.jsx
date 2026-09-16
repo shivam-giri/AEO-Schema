@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { ChevronDown, CheckCircle, XCircle, MinusCircle } from 'lucide-react';
 import { PILLAR_WEIGHTS } from '../services/auditAnalyzer.js';
 
@@ -8,8 +7,8 @@ function getBarColor(pct) {
   return 'var(--accent-danger)';
 }
 
-export default function AuditCategory({ category, index, animated, isUX = false }) {
-  const [open, setOpen] = useState(index < 2);
+export default function AuditCategory({ category, index, animated, isUX = false, isOpen, onToggle }) {
+  const open = isOpen;
   const pct      = category.score;
   const barColor = getBarColor(pct);
   const weight   = PILLAR_WEIGHTS[category.id];
@@ -27,10 +26,11 @@ export default function AuditCategory({ category, index, animated, isUX = false 
       {/* Header */}
       <div
         className="audit-category-header"
-        onClick={() => setOpen(o => !o)}
+        onClick={onToggle}
         role="button"
         tabIndex={0}
-        onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setOpen(o => !o)}
+        aria-expanded={open}
+        onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && onToggle()}
       >
         <span className="audit-category-emoji" aria-hidden="true">{category.emoji}</span>
 

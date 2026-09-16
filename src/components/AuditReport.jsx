@@ -1,11 +1,16 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, Download, Lightbulb, BarChart2, Info } from 'lucide-react';
+import { RefreshCw, Download, Lightbulb, BarChart2, Info, ChevronsDown, ChevronsUp } from 'lucide-react';
 import AuditCategory from './AuditCategory.jsx';
 import RecommendationCard from './RecommendationCard.jsx';
 import { PRIORITY, PILLAR_WEIGHTS } from '../services/auditAnalyzer.js';
 import { exportAuditPDF } from '../utils/pdfExporter.js';
 
 const CIRCUMFERENCE = 2 * Math.PI * 52;
+
+// Pillars below this score auto-expand in the Score Breakdown tab; everything
+// else starts collapsed to keep the page from being one long scroll. Matches
+// the 65/100 pass threshold shown elsewhere in the audit formula.
+const AUTO_EXPAND_THRESHOLD = 65;
 
 function getScoreColor(score) {
   if (score >= 80) return 'var(--accent-success)';
@@ -24,11 +29,7 @@ export default function AuditReport({ results, onReset, onSwitchToSchema }) {
   const [animated,   setAnimated]   = useState(false);
   const [activeTab,  setActiveTab]  = useState('categories');
   const [showFormula, setShowFormula] = useState(false);
-
-  useEffect(() => {
-    const t = setTimeout(() => setAnimated(true), 100);
-    return () => clearTimeout(t);
-  }, []);
+  const [recFilter, setRecFilter] = useState(null); // null | PRIORITY.HIGH | PRIORITY.MEDIUM | PRIORITY.LOW
 
   const {
     pillars, uxPillar, aiAccessPillar, gateMultiplier, preGateScore,
@@ -36,6 +37,31 @@ export default function AuditReport({ results, onReset, onSwitchToSchema }) {
     recommendations, meta, readabilityScore, searchabilityScore, speedScores,
     pageType, selectedPageType, effectivePageType,
   } = results;
+
+  const allCategories = [aiAccessPillar, ...pillars, uxPillar];
+
+  const [openMap, setOpenMap] = useState(() => {
+    const map = {};
+    allCategories.forEach(cat => {
+      map[cat.id] = typeof cat.score === 'number' && cat.score < AUTO_EXPAND_THRESHOLD;
+    });
+    return map;
+  });
+
+  useEffect(() => {
+    const t = setTimeout(() => setAnimated(true), 100);
+    return () => clearTimeout(t);
+  }, []);
+
+  const toggleCategory = (id) => setOpenMap(m => ({ ...m, [id]: !m[id] }));
+  const setAllCategories = (value) => setOpenMap(
+    Object.fromEntries(allCategories.map(cat => [cat.id, value]))
+  );
+
+  const jumpToRecommendations = (priority) => {
+    setRecFilter(priority);
+    setActiveTab('recommendations');
+  };
 
   const gatePenaltyPct = Math.round((1 - gateMultiplier) * 100);
 
@@ -214,20 +240,35 @@ export default function AuditReport({ results, onReset, onSwitchToSchema }) {
           )}
         </div>
 
-        {/* Rec counts */}
+        {/* Rec counts — click to jump to the matching Recommendations filter */}
         <div className="audit-rec-counts">
-          <div className="rec-count-item rec-high">
+          <button
+            type="button"
+            className="rec-count-item rec-high rec-count-clickable"
+            onClick={() => jumpToRecommendations(PRIORITY.HIGH)}
+            disabled={highRecs.length === 0}
+          >
             <span className="rec-count-number">{highRecs.length}</span>
             <span>High</span>
-          </div>
-          <div className="rec-count-item rec-medium">
+          </button>
+          <button
+            type="button"
+            className="rec-count-item rec-medium rec-count-clickable"
+            onClick={() => jumpToRecommendations(PRIORITY.MEDIUM)}
+            disabled={medRecs.length === 0}
+          >
             <span className="rec-count-number">{medRecs.length}</span>
             <span>Medium</span>
-          </div>
-          <div className="rec-count-item rec-low">
+          </button>
+          <button
+            type="button"
+            className="rec-count-item rec-low rec-count-clickable"
+            onClick={() => jumpToRecommendations(PRIORITY.LOW)}
+            disabled={lowRecs.length === 0}
+          >
             <span className="rec-count-number">{lowRecs.length}</span>
             <span>Quick Wins</span>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -246,42 +287,77 @@ export default function AuditReport({ results, onReset, onSwitchToSchema }) {
           onClick={() => setActiveTab('recommendations')}
         >
           <Lightbulb size={15} /> Recommendations
-          <span className="audit-tab-badge">{recommendations.length}</span>
+          <span className="audit-tab-badge">
+            {recFilter ? recommendations.filter(r => r.priority === recFilter).length : recommendations.length}
+          </span>
         </button>
       </div>
 
       {/* Score Breakdown */}
       {activeTab === 'categories' && (
         <div className="audit-categories-list">
+          <div className="audit-categories-toolbar">
+            <button type="button" className="audit-formula-btn" onClick={() => setAllCategories(true)}>
+              <ChevronsDown size={13} /> Expand all
+            </button>
+            <button type="button" className="audit-formula-btn" onClick={() => setAllCategories(false)}>
+              <ChevronsUp size={13} /> Collapse all
+            </button>
+          </div>
           {/* AI Access gate — shown first since it's a prerequisite, not a
               weighted pillar; see the score-strip warning above for its
               effect on the overall score. */}
-          <AuditCategory category={aiAccessPillar} index={0} animated={animated} />
+          <AuditCategory
+            category={aiAccessPillar}
+            index={0}
+            animated={animated}
+            isOpen={!!openMap[aiAccessPillar.id]}
+            onToggle={() => toggleCategory(aiAccessPillar.id)}
+          />
           <div className="audit-ux-separator">
             <span>🗂️ Weighted Pillars</span>
             <span className="audit-ux-note">Combine into the overall score, then scaled by the AI Access gate above</span>
           </div>
           {pillars.map((cat, i) => (
-            <AuditCategory key={cat.id} category={cat} index={i + 1} animated={animated} />
+            <AuditCategory
+              key={cat.id}
+              category={cat}
+              index={i + 1}
+              animated={animated}
+              isOpen={!!openMap[cat.id]}
+              onToggle={() => toggleCategory(cat.id)}
+            />
           ))}
           {/* UX section — separated */}
           <div className="audit-ux-separator">
             <span>📱 User Experience</span>
             <span className="audit-ux-note">Reported separately — not included in overall score</span>
           </div>
-          <AuditCategory category={uxPillar} index={pillars.length} animated={animated} isUX />
+          <AuditCategory
+            category={uxPillar}
+            index={pillars.length}
+            animated={animated}
+            isUX
+            isOpen={!!openMap[uxPillar.id]}
+            onToggle={() => toggleCategory(uxPillar.id)}
+          />
         </div>
       )}
 
       {/* Recommendations */}
       {activeTab === 'recommendations' && (
         <div className="audit-recs-list">
+          {recFilter && (
+            <button type="button" className="audit-rec-filter-chip" onClick={() => setRecFilter(null)}>
+              Showing {PRIORITY_LABELS[recFilter].label} only ✕
+            </button>
+          )}
           {recommendations.length === 0 ? (
             <div className="audit-no-recs">
               🎉 All checks passed! Your page is well-optimized for AI answer engines.
             </div>
           ) : (
-            [PRIORITY.HIGH, PRIORITY.MEDIUM, PRIORITY.LOW].map(priority => {
+            [PRIORITY.HIGH, PRIORITY.MEDIUM, PRIORITY.LOW].filter(p => !recFilter || p === recFilter).map(priority => {
               const recs = recommendations.filter(r => r.priority === priority);
               if (!recs.length) return null;
               const cfg = PRIORITY_LABELS[priority];

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Copy, Check, ChevronDown, FileJson, Sparkles, HelpCircle, WrapText } from 'lucide-react';
+import { Copy, Check, ChevronDown, FileJson, Sparkles, HelpCircle, WrapText, ExternalLink } from 'lucide-react';
 
 // Schema type → color/icon configuration
 const TYPE_CONFIG = {
@@ -34,7 +34,7 @@ function highlightJSON(json) {
     });
 }
 
-export default function SchemaCard({ schemaResult, index, focusType = null }) {
+export default function SchemaCard({ schemaResult, index, focusType = null, pageUrl = '' }) {
   const { type, label, description, impact, schema, qaPairs = [], qaSource = 'heuristic' } = schemaResult;
   const isFocused = Boolean(focusType) && focusType === type;
 
@@ -115,15 +115,20 @@ export default function SchemaCard({ schemaResult, index, focusType = null }) {
 
         {/* Actions */}
         <div className="schema-card-actions" onClick={e => e.stopPropagation()}>
-          <button
-            id={`copy-btn-${type}`}
-            className={`icon-btn ${copied ? 'copy-success' : ''}`}
-            onClick={handleCopy}
-            title="Copy as <script> tag"
-            aria-label={`Copy ${label} schema`}
-          >
-            {copied ? <Check size={14} /> : <Copy size={14} />}
-          </button>
+          <div className="copy-btn-wrap">
+            <button
+              id={`copy-btn-${type}`}
+              className={`icon-btn ${copied ? 'copy-success' : ''}`}
+              onClick={handleCopy}
+              title="Copy as <script> tag"
+              aria-label={`Copy ${label} schema`}
+            >
+              {copied ? <Check size={14} /> : <Copy size={14} />}
+            </button>
+            {copied && (
+              <span className="copy-confirm-tooltip" role="status">Copied!</span>
+            )}
+          </div>
         </div>
 
         <div className={`chevron-btn ${isOpen ? 'open' : ''}`} aria-hidden="true">
@@ -173,6 +178,19 @@ export default function SchemaCard({ schemaResult, index, focusType = null }) {
               />
             ))}
           </div>
+          {pageUrl && (
+            <a
+              className="schema-validate-link"
+              href={`https://search.google.com/test/rich-results?url=${encodeURIComponent(pageUrl)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              title="Validate this page's structured data in Google Rich Results Test"
+            >
+              <ExternalLink size={12} />
+              Validate in Rich Results Test
+            </a>
+          )}
         </div>
       </div>
     </article>
