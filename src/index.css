@@ -1170,6 +1170,37 @@ body {
   position: relative;
 }
 
+.schema-code-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-2) var(--space-3) 0;
+  background: #090c14;
+}
+
+.schema-wrap-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(247, 246, 238, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.schema-wrap-toggle:hover,
+.schema-wrap-toggle[aria-pressed="true"] {
+  border-color: var(--accent-primary);
+  color: var(--text-primary);
+  background: rgba(255, 0, 111, 0.15);
+}
+
 .schema-code {
   display: block;
   padding: var(--space-6);
@@ -1182,6 +1213,34 @@ body {
   max-height: 500px;
   white-space: pre;
   tab-size: 2;
+  /* More visible horizontal-scroll affordance than the global 6px thumb */
+  scrollbar-width: auto;
+  scrollbar-color: rgba(255, 0, 111, 0.55) rgba(255, 255, 255, 0.06);
+}
+
+.schema-code.schema-code-wrap {
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-x: hidden;
+}
+
+.schema-code::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.schema-code::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.schema-code::-webkit-scrollbar-thumb {
+  background: rgba(255, 0, 111, 0.55);
+  border-radius: var(--radius-full);
+  border: 3px solid #090c14;
+}
+
+.schema-code::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 0, 111, 0.8);
 }
 
 /* JSON syntax highlighting */
@@ -1358,7 +1417,7 @@ body {
 
 .audit-summary-bars { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
 .audit-summary-row { display: flex; align-items: center; gap: var(--space-3); }
-.audit-summary-label { font-size: 14px; color: var(--text-secondary); width: 190px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.audit-summary-label { font-size: 14px; color: var(--text-secondary); width: 190px; flex-shrink: 0; white-space: normal; line-height: 1.4; display: flex; align-items: center; flex-wrap: wrap; row-gap: 2px; column-gap: 4px; }
 .audit-summary-bar-track { flex: 1; height: 6px; background: var(--color-surface-3); border-radius: var(--radius-full); overflow: hidden; }
 .audit-summary-bar-fill { height: 100%; border-radius: var(--radius-full); }
 .audit-summary-pct { font-size: 14px; font-weight: 700; width: 40px; text-align: right; flex-shrink: 0; }
@@ -1421,9 +1480,9 @@ body {
 .rec-priority-badge.priority-medium { background: rgba(245, 158, 11, 0.15); color: var(--accent-warning); }
 .rec-priority-badge.priority-low { background: rgba(58, 205, 7, 0.15); color: var(--accent-success); }
 
-.rec-category-tag { font-size: 13px; color: var(--text-muted); background: var(--color-surface-3); padding: 4px 12px; border-radius: var(--radius-full); }
+.rec-category-tag { font-size: 13px; font-weight: 500; color: var(--text-secondary); background: var(--color-surface-3); padding: 4px 12px; border-radius: var(--radius-full); }
 .rec-title { font-size: 18px; font-weight: 700; color: var(--text-primary); margin-bottom: var(--space-2); line-height: 1.4; }
-.rec-description { font-size: 16px; color: var(--text-secondary); line-height: 1.75; margin-bottom: var(--space-3); }
+.rec-description { font-size: 16px; color: var(--text-secondary); line-height: 1.75; margin-bottom: var(--space-3); overflow-wrap: anywhere; }
 .rec-description:last-child { margin-bottom: 0; }
 .rec-schema-btn { display: inline-flex; align-items: center; gap: var(--space-2); padding: 8px 16px; border-radius: var(--radius-md); background: rgba(139,92,246,0.12); border: 1px solid rgba(139,92,246,0.25); color: var(--accent-primary); font-family: var(--font-sans); font-size: 14px; font-weight: 600; cursor: pointer; transition: all var(--transition-base); }
 .rec-schema-btn:hover { background: rgba(139,92,246,0.2); border-color: rgba(139,92,246,0.4); transform: translateY(-1px); }
