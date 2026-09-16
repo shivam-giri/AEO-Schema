@@ -9,7 +9,7 @@ import ScoringCriteriaPage from './components/ScoringCriteriaPage.jsx';
 import DocumentationPage from './components/DocumentationPage.jsx';
 import QnAPage from './components/QnAPage.jsx';
 import SchemaGenerationPage from './components/SchemaGenerationPage.jsx';
-import { fetchPageHTML } from './services/fetcher.js';
+import { fetchPageHTML, fetchRobotsTxt } from './services/fetcher.js';
 import { generateAEOSchemas } from './services/schemaGenerator.js';
 import { runFullAudit } from './services/auditAnalyzer.js';
 
@@ -149,7 +149,12 @@ export default function App() {
         setSchemaResults(results);
 
       } else {
-        const results = runFullAudit(html, resolvedUrl);
+        // AI Crawler Access gate needs robots.txt — fetched separately (it's
+        // not part of the page HTML) via the same proxy used for the page
+        // itself. A failure here just means "treat as unrestricted", not an
+        // audit failure, so it's never allowed to throw.
+        const robotsTxt = await fetchRobotsTxt(resolvedUrl);
+        const results = runFullAudit(html, resolvedUrl, robotsTxt);
         await advanceStep('generate');
         await advanceStep('score');
         await new Promise(r => setTimeout(r, 400));

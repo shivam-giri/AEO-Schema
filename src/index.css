@@ -1475,6 +1475,18 @@ body {
   color: var(--text-muted);
 }
 
+/* AI Crawler Access is a multiplicative gate, not a weighted pillar — styled
+   distinctly (warning tone) so it doesn't read as "just another 25%" badge. */
+.audit-gate-badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-warning);
+  letter-spacing: 0.04em;
+}
+
 /* Pass/Fail pill per check */
 .audit-pass-fail-badge {
   font-size: 12px;
@@ -1528,6 +1540,26 @@ body {
   border-top: 1px dashed var(--color-border);
   padding-top: var(--space-2);
   margin-top: var(--space-1);
+}
+
+/* AI Access gate row — separated from the weighted pillar bars below it with
+   a solid divider (vs. UX's dashed one) since it isn't optional/secondary
+   like UX, it actively multiplies the score. */
+.audit-summary-row.ai-access-row {
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-1);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.audit-gate-warning {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--accent-warning);
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  margin: -4px 0 var(--space-1);
 }
 
 /* Formula reveal */

@@ -31,10 +31,13 @@ export default function AuditReport({ results, onReset, onSwitchToSchema }) {
   }, []);
 
   const {
-    pillars, uxPillar, overallScore, grade, gradeClass,
+    pillars, uxPillar, aiAccessPillar, gateMultiplier, preGateScore,
+    overallScore, grade, gradeClass,
     recommendations, meta, readabilityScore, searchabilityScore, speedScores,
     pageType, selectedPageType, effectivePageType,
   } = results;
+
+  const gatePenaltyPct = Math.round((1 - gateMultiplier) * 100);
 
   const color  = getScoreColor(overallScore);
   const offset = animated ? CIRCUMFERENCE * (1 - overallScore / 100) : CIRCUMFERENCE;
@@ -56,6 +59,8 @@ export default function AuditReport({ results, onReset, onSwitchToSchema }) {
         pillars,
         recommendations,
         uxPillar,
+        aiAccessPillar,
+        gateMultiplier,
       });
     } catch (err) {
       console.error('[AEO Studio] Error generating PDF:', err);
@@ -112,6 +117,32 @@ export default function AuditReport({ results, onReset, onSwitchToSchema }) {
 
         {/* Pillar bars */}
         <div className="audit-summary-bars">
+          {/* AI Crawler Access — gate, not a weighted pillar. Shown first and
+              distinctly styled since it scales the entire score below rather
+              than being averaged into it. */}
+          <div className="audit-summary-row ai-access-row">
+            <span className="audit-summary-label">
+              {aiAccessPillar.emoji} {aiAccessPillar.label}
+              <span className="audit-summary-weight audit-gate-badge" style={{ marginLeft: 4 }}>GATE</span>
+            </span>
+            <div className="audit-summary-bar-track">
+              <div
+                className="audit-summary-bar-fill"
+                style={{
+                  width: animated ? `${aiAccessPillar.score}%` : '0%',
+                  background: getScoreColor(aiAccessPillar.score),
+                  transition: 'width 1s ease',
+                }}
+              />
+            </div>
+            <span className="audit-summary-pct" style={{ color: getScoreColor(aiAccessPillar.score) }}>{aiAccessPillar.score}%</span>
+          </div>
+          {gatePenaltyPct > 0 && (
+            <div className="audit-gate-warning" role="status">
+              ⚠️ AI Crawler Access issues are reducing the overall score by {gatePenaltyPct}% ({preGateScore} → {overallScore}) — see the AI Crawler Access section below.
+            </div>
+          )}
+
           {pillars.map(pillar => {
             const barColor = getScoreColor(pillar.score);
             return (
@@ -164,13 +195,17 @@ export default function AuditReport({ results, onReset, onSwitchToSchema }) {
           {showFormula && (
             <div className="audit-formula-box">
               <strong>Overall Score Formula:</strong><br />
-              Schema×30% + Content×25% + Technical×25% + E‑E‑A‑T×20%<br />
+              (Schema×25% + Content×25% + Technical×20% + E‑E‑A‑T×20% + Freshness×10%) × AI Access gate<br />
               <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
-                = {pillars.find(p=>p.id==='schema')?.score}×0.30
+                = ({pillars.find(p=>p.id==='schema')?.score}×0.25
                 + {pillars.find(p=>p.id==='content')?.score}×0.25
-                + {pillars.find(p=>p.id==='technical')?.score}×0.25
+                + {pillars.find(p=>p.id==='technical')?.score}×0.20
                 + {pillars.find(p=>p.id==='eeat')?.score}×0.20
-                = {overallScore}
+                + {pillars.find(p=>p.id==='freshness')?.score}×0.10)
+                = {preGateScore}
+              </span><br />
+              <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
+                {preGateScore} × {gateMultiplier.toFixed(2)} (AI Access {aiAccessPillar.score}%) = {overallScore}
               </span><br />
               <span style={{ color: 'var(--text-muted)', fontSize: 11 }}>
                 Pass threshold for calculated scores: 65/100 · UX not included in overall score
@@ -218,8 +253,16 @@ export default function AuditReport({ results, onReset, onSwitchToSchema }) {
       {/* Score Breakdown */}
       {activeTab === 'categories' && (
         <div className="audit-categories-list">
+          {/* AI Access gate — shown first since it's a prerequisite, not a
+              weighted pillar; see the score-strip warning above for its
+              effect on the overall score. */}
+          <AuditCategory category={aiAccessPillar} index={0} animated={animated} />
+          <div className="audit-ux-separator">
+            <span>🗂️ Weighted Pillars</span>
+            <span className="audit-ux-note">Combine into the overall score, then scaled by the AI Access gate above</span>
+          </div>
           {pillars.map((cat, i) => (
-            <AuditCategory key={cat.id} category={cat} index={i} animated={animated} />
+            <AuditCategory key={cat.id} category={cat} index={i + 1} animated={animated} />
           ))}
           {/* UX section — separated */}
           <div className="audit-ux-separator">

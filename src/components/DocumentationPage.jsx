@@ -20,7 +20,7 @@ export default function DocumentationPage({ onBack }) {
           System Architecture &amp; <span className="hero-title-gradient">Workflow Guide</span>
         </h1>
         <p className="hero-subtitle">
-          Understand the end-to-end technical pipeline behind AEO Studio — from CORS-bypassing HTML fetching to DOM parsing, targeted JSON-LD schema generation, AI search engine emulation, and 4-pillar AEO audits.
+          Understand the end-to-end technical pipeline behind AEO Studio — from CORS-bypassing HTML fetching to DOM parsing, targeted JSON-LD schema generation, AI search engine emulation, and the 5-pillar, AI-access-gated AEO audit.
         </p>
       </header>
 
@@ -139,8 +139,8 @@ export default function DocumentationPage({ onBack }) {
           <div className="pipeline-step-card">
             <div className="pipeline-step-num">05</div>
             <div className="pipeline-step-content">
-              <h3>4-Pillar AEO Audit</h3>
-              <p>Evaluates Schema Markup (30%), Content Structure (25%), Technical SEO (25%), and E-E-A-T (20%) against a 65/100 threshold.</p>
+              <h3>5-Pillar AEO Audit, Gated on AI Access</h3>
+              <p>Evaluates Schema Markup (25%), Content Structure (25%), Technical SEO (20%), E-E-A-T (20%), and Content Freshness (10%) against a 65/100 threshold, then scales the result by an AI Crawler Access gate.</p>
             </div>
           </div>
 
@@ -194,16 +194,18 @@ export default function DocumentationPage({ onBack }) {
           <div className="scoring-card doc-module-card">
             <div className="doc-module-header">
               <span className="doc-module-badge">Module 3</span>
-              <h3>4-Pillar AEO Scoring &amp; Audit Engine</h3>
+              <h3>5-Pillar AEO Scoring &amp; Audit Engine</h3>
             </div>
             <p>
-              Evaluates 30 components using clear Pass/Fail criteria tailored to the active Page Type:
+              Evaluates 30+ components using clear Pass/Fail/N/A criteria, each weighted by priority within its pillar, tailored to the active Page Type:
             </p>
             <ul className="plain-english-list">
-              <li><strong>Schema Markup (30%):</strong> Verifies required schemas for the page type. On Homepages, Breadcrumb &amp; Article schemas are marked <strong>PASS (N/A)</strong>.</li>
-              <li><strong>Content Structure (25%):</strong> Checks single H1 tag, headline question words (`what`, `how`, `why`), paragraph lengths (50–200 chars), and Flesch-Kincaid readability.</li>
-              <li><strong>Technical SEO (25%):</strong> Checks HTTPS, mobile viewport, resource counts (CSS ≤5, Scripts ≤10), nav links, and accessibility.</li>
-              <li><strong>E-E-A-T (20%):</strong> Checks author attribution, credentials (`phd`, `certified`, `expert`), trust badges (`testimonials`, `ssl`), and contact details.</li>
+              <li><strong>AI Crawler Access (gate, not a %):</strong> Checks robots.txt rules for known AI search bots, meta-robots indexability, and whether content exists in the raw HTML. Multiplies the final score from ×1.00 down to ×0.25.</li>
+              <li><strong>Schema Markup (25%):</strong> Verifies required schemas for the page type. On Homepages, Breadcrumb &amp; Article schemas are marked <strong>PASS (N/A)</strong>.</li>
+              <li><strong>Content Structure (25%):</strong> Checks single H1 tag, headline question words (`what`, `how`, `why`), paragraph lengths (50–200 chars), Flesch-Kincaid readability, and whether the answer is front-loaded in the opening paragraphs.</li>
+              <li><strong>Technical SEO (20%):</strong> Checks HTTPS, mobile viewport, resource counts (CSS ≤5, Scripts ≤10), nav links, and accessibility.</li>
+              <li><strong>E-E-A-T (20%):</strong> Checks author attribution, credentials (`phd`, `certified`, `expert`), real trust signals (`testimonials`, reviews, `ssl`), and contact details.</li>
+              <li><strong>Content Freshness (10%):</strong> Checks publication date, a distinct last-updated date, and a human-visible date on the page. N/A on Homepages.</li>
             </ul>
           </div>
         </div>
@@ -250,7 +252,7 @@ export default function DocumentationPage({ onBack }) {
       {/* ── Bottom CTA ─────────────────────────────────────────── */}
       <div className="scoring-cta-box">
         <h3>Ready to Try AEO Studio?</h3>
-        <p>Generate targeted JSON-LD schemas or run a full 4-pillar AEO audit for your website in seconds.</p>
+        <p>Generate targeted JSON-LD schemas or run a full 5-pillar, AI-access-gated AEO audit for your website in seconds.</p>
         <button className="btn-primary analyze-btn" onClick={onBack}>
           <Zap size={18} /> Launch Generator &amp; Audit Tool
         </button>

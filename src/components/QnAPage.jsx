@@ -20,7 +20,7 @@ const QA_ITEMS = [
   },
   {
     q: '5. How is the overall AEO Readiness Score calculated?',
-    a: 'The overall score uses a weighted 4-pillar formula: Schema Markup (30%) + Content Structure (25%) + Technical SEO (25%) + E-E-A-T & Trust (20%). Each check is Pass/Fail, and scores use a 65/100 benchmark threshold for AI search engine readiness.'
+    a: 'The overall score uses a weighted 5-pillar formula: Schema Markup (25%) + Content Structure (25%) + Technical SEO (20%) + E-E-A-T & Trust (20%) + Content Freshness (10%), each check further weighted by priority. That weighted score is then scaled by an AI Crawler Access gate (x1.00 down to x0.25) based on whether AI search bots can actually reach the page via robots.txt, meta-robots, and raw-HTML content checks. Scores use a 65/100 benchmark threshold for AI search engine readiness.'
   },
   {
     q: '6. Why do some checks show "⚪ N/A" instead of PASS or FAIL?',
@@ -80,7 +80,7 @@ export default function QnAPage({ onBack }) {
           <p className="qna-quote-sub">
            
               I developed <strong>AEO Studio</strong> — an internal enterprise tool designed to solve this exact challenge. It automates 
-              <strong> Answer Engine Optimization (AEO)</strong> by performing 4-pillar readiness audits and generating targeted, machine-readable 
+              <strong> Answer Engine Optimization (AEO)</strong> by performing 5-pillar, AI-access-gated readiness audits and generating targeted, machine-readable
               <strong> JSON-LD schemas</strong> tailored specifically for corporate websites, newsrooms, governance (Board of Directors), and client portals in under 3 seconds."
             
           </p>
@@ -110,8 +110,8 @@ export default function QnAPage({ onBack }) {
                 <td><span className="schema-pill required">Saves 5–10 Hours / Project</span></td>
               </tr>
               <tr>
-                <td><strong>4-Pillar AEO Audit Engine</strong></td>
-                <td>Evaluates Schema Markup (30%), Content Structure (25%), Technical SEO (25%), and E-E-A-T (20%).</td>
+                <td><strong>5-Pillar AEO Audit Engine</strong></td>
+                <td>Evaluates Schema Markup (25%), Content Structure (25%), Technical SEO (20%), E-E-A-T (20%), and Content Freshness (10%) — scaled by an AI Crawler Access gate.</td>
                 <td><span className="schema-pill required">Data-Backed Benchmark Score (0–100)</span></td>
               </tr>
               <tr>

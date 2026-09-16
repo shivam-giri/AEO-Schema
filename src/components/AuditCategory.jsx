@@ -13,6 +13,11 @@ export default function AuditCategory({ category, index, animated, isUX = false 
   const pct      = category.score;
   const barColor = getBarColor(pct);
   const weight   = PILLAR_WEIGHTS[category.id];
+  // The AI Crawler Access pillar carries its own `pct: 'Gate'` label instead
+  // of a PILLAR_WEIGHTS entry — it multiplies the overall score rather than
+  // being averaged into it, so "25%"-style badges would be misleading here.
+  const badgeText = category.pct || weight?.pct;
+  const isGate    = category.pct === 'Gate';
 
   return (
     <div
@@ -32,8 +37,8 @@ export default function AuditCategory({ category, index, animated, isUX = false 
         <div className="audit-category-info">
           <div className="audit-category-name-row">
             <span className="audit-category-name">{category.label}</span>
-            {weight && (
-              <span className="audit-weight-badge">{weight.pct}</span>
+            {badgeText && (
+              <span className={isGate ? 'audit-gate-badge' : 'audit-weight-badge'}>{badgeText}</span>
             )}
             {isUX && (
               <span className="audit-ux-badge">not in main score</span>

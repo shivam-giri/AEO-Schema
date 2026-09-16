@@ -32,7 +32,7 @@ function sanitizeText(str) {
     .replace(/[^\x20-\x7E]/g, '');
 }
 
-export function exportAuditPDF({ overallScore, grade, meta, pageType, selectedPageType, pillars, recommendations, uxPillar }) {
+export function exportAuditPDF({ overallScore, grade, meta, pageType, selectedPageType, pillars, recommendations, uxPillar, aiAccessPillar, gateMultiplier }) {
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -106,14 +106,14 @@ export function exportAuditPDF({ overallScore, grade, meta, pageType, selectedPa
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(100, 100, 100);
-  doc.text('Formula: Schema (30%) + Content (25%) + Technical (25%) + E-E-A-T (20%)', 75, y + 21);
+  doc.text('Weighted 5-pillar score, scaled by the AI Crawler Access gate below', 75, y + 21);
 
-  // 4 Pillars Breakdown Table
+  // 5 Pillars + AI Access Gate Breakdown Table
   y += 35;
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(17, 7, 25);
-  doc.text('4-Pillar Assessment Breakdown', 15, y);
+  doc.text('5-Pillar Assessment Breakdown', 15, y);
 
   y += 5;
   // Table Header
@@ -129,6 +129,22 @@ export function exportAuditPDF({ overallScore, grade, meta, pageType, selectedPa
   y += 8;
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(40, 40, 40);
+
+  // AI Crawler Access row — a gate that multiplies the score below, not one
+  // more weighted pillar, so it's called out with its own highlighted row
+  // and the resulting multiplier rather than a percentage weight.
+  if (aiAccessPillar) {
+    doc.setFillColor(255, 247, 230);
+    doc.rect(15, y, pageWidth - 30, 8, 'F');
+    doc.text(sanitizeText(`${aiAccessPillar.label} (Gate)`), 20, y + 5.5);
+    doc.text(`x${(gateMultiplier ?? 1).toFixed(2)}`, 85, y + 5.5);
+    const gatePass = aiAccessPillar.checks.filter(c => c.passed).length;
+    doc.text(`${gatePass}/${aiAccessPillar.checks.length}`, 125, y + 5.5);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${aiAccessPillar.score}%`, 170, y + 5.5);
+    doc.setFont('helvetica', 'normal');
+    y += 8;
+  }
 
   if (pillars && pillars.length > 0) {
     pillars.forEach((p, idx) => {
