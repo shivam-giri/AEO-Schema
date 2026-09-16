@@ -86,7 +86,7 @@ export default function AuditReport({ results, onReset, onSwitchToSchema }) {
         <div className="results-actions">
           <button className="btn-secondary" onClick={onReset}><RefreshCw size={14} /> New Analysis</button>
           <button className="btn-secondary" onClick={handleDownload}><Download size={14} /> PDF Report</button>
-          <button className="btn-primary" onClick={onSwitchToSchema}>⚡ Generate Schemas</button>
+          <button className="btn-primary" onClick={() => onSwitchToSchema()}>⚡ Generate Schemas</button>
         </div>
       </div>
 

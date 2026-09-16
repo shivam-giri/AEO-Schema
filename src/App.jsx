@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import Hero from './components/Hero.jsx';
 import ModeSelector from './components/ModeSelector.jsx';
 import URLInput from './components/URLInput.jsx';
@@ -44,6 +44,8 @@ export default function App() {
   const [auditResults, setAuditResults] = useState(null);
   const [lastUrl, setLastUrl] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
+  const [focusSchemaType, setFocusSchemaType] = useState(null);
+  const analysisIdRef = useRef(0);
 
   // Apply data-theme attribute on document root and persist in localStorage
   useEffect(() => {
@@ -109,23 +111,19 @@ export default function App() {
   // Switch mode — if we already have results for the new mode, show them immediately
   const handleModeChange = useCallback((newMode) => {
     setMode(newMode);
+    setFocusSchemaType(null);
     // If results already exist for this mode, jump to results
     if (newMode === 'schema' && schemaResults) setState('results');
     else if (newMode === 'audit' && auditResults) setState('results');
     else setState('idle');
   }, [schemaResults, auditResults]);
 
-  // Switch to schema mode (called from audit "Fix with Schema Generator" CTA)
-  const handleSwitchToSchema = useCallback(() => {
-    setMode('schema');
-    if (schemaResults) setState('results');
-    else setState('idle');
-  }, [schemaResults]);
-
   const advanceStep = (step) =>
     new Promise(resolve => setTimeout(() => { setLoaderStep(step); resolve(); }, STEP_DELAYS[step]));
 
-  const handleAnalyze = useCallback(async (url) => {
+  const handleAnalyze = useCallback(async (url, modeOverride) => {
+    const activeMode = modeOverride || mode;
+    const analysisId = ++analysisIdRef.current;
     setState('loading');
     setLoaderStep('fetch');
     setErrorMessage('');
@@ -141,11 +139,12 @@ export default function App() {
       await advanceStep('parse');
       await advanceStep('detect');
 
-      if (mode === 'schema') {
+      if (activeMode === 'schema') {
         await advanceStep('generate');
         await advanceStep('qa');
         const results = await generateAEOSchemas(html, resolvedUrl);
         await new Promise(r => setTimeout(r, 400));
+        if (analysisIdRef.current !== analysisId) return; // cancelled
         setSchemaResults(results);
 
       } else {
@@ -158,22 +157,52 @@ export default function App() {
         await advanceStep('generate');
         await advanceStep('score');
         await new Promise(r => setTimeout(r, 400));
+        if (analysisIdRef.current !== analysisId) return; // cancelled
         setAuditResults(results);
       }
 
+      if (analysisIdRef.current !== analysisId) return; // cancelled
       setState('results');
     } catch (err) {
+      if (analysisIdRef.current !== analysisId) return; // cancelled
       console.error('[AEO App] Error:', err);
       setErrorMessage(err.message || 'An unexpected error occurred. Please try again.');
       setState('error');
     }
   }, [mode]);
 
+  // Switch to schema mode (called from the audit report's "Generate Schemas"
+  // button and per-recommendation "Fix with Schema Generator" CTAs). Carries
+  // the already-analyzed URL over so schema generation runs immediately
+  // instead of dropping the user back on a blank form, and optionally opens
+  // a specific schema type card when deep-linked from a recommendation.
+  const handleSwitchToSchema = useCallback((schemaType = null) => {
+    setMode('schema');
+    setFocusSchemaType(schemaType);
+    if (lastUrl) {
+      handleAnalyze(lastUrl, 'schema');
+    } else if (schemaResults) {
+      setState('results');
+    } else {
+      setState('idle');
+    }
+  }, [lastUrl, schemaResults, handleAnalyze]);
+
+  // Bail out of an in-flight analysis and return to the input screen —
+  // guards on analysisIdRef so a late-arriving response from the cancelled
+  // run can't clobber whatever the user does next.
+  const handleCancelAnalysis = useCallback(() => {
+    analysisIdRef.current += 1;
+    setErrorMessage('');
+    setState('idle');
+  }, []);
+
   const handleReset = () => {
     setState('idle');
     setSchemaResults(null);
     setAuditResults(null);
     setErrorMessage('');
+    setFocusSchemaType(null);
   };
 
   const showInput = state === 'idle' || state === 'error';
@@ -246,11 +275,13 @@ export default function App() {
             )}
 
             {/* Loader */}
-            {state === 'loading' && <AnalysisLoader step={loaderStep} mode={mode} />}
+            {state === 'loading' && (
+              <AnalysisLoader step={loaderStep} mode={mode} onCancel={handleCancelAnalysis} />
+            )}
 
             {/* Results — Schema mode */}
             {state === 'results' && mode === 'schema' && schemaResults && (
-              <ResultsPanel results={schemaResults} onReset={handleReset} />
+              <ResultsPanel results={schemaResults} onReset={handleReset} focusType={focusSchemaType} />
             )}
 
             {/* Results — Audit mode */}

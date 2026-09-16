@@ -35,7 +35,7 @@ export default function RecommendationCard({ rec, onSwitchToSchema }) {
       {rec.schemaFix && (
         <button
           className="rec-schema-btn"
-          onClick={onSwitchToSchema}
+          onClick={() => onSwitchToSchema(rec.schemaType)}
           title={`Switch to Schema Generator to fix this`}
         >
           <Zap size={12} />

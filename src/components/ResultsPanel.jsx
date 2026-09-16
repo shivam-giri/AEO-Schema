@@ -12,7 +12,7 @@ const PAGE_TYPE_LABELS = {
   generic: { label: 'Generic Page',             emoji: '🌐' },
 };
 
-export default function ResultsPanel({ results, onReset }) {
+export default function ResultsPanel({ results, onReset, focusType = null }) {
   const { schemas, score, meta, pageType } = results;
   const pageTypeInfo = PAGE_TYPE_LABELS[pageType] || PAGE_TYPE_LABELS.generic;
 
@@ -122,6 +122,7 @@ export default function ResultsPanel({ results, onReset }) {
             key={schema.type}
             schemaResult={schema}
             index={i}
+            focusType={focusType}
           />
         ))}
       </div>

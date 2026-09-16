@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Copy, Check, ChevronDown, FileJson, Sparkles, HelpCircle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Copy, Check, ChevronDown, FileJson, Sparkles, HelpCircle, WrapText } from 'lucide-react';
 
 // Schema type → color/icon configuration
 const TYPE_CONFIG = {
@@ -34,11 +34,24 @@ function highlightJSON(json) {
     });
 }
 
-export default function SchemaCard({ schemaResult, index }) {
-  const [isOpen, setIsOpen] = useState(index === 0); // first card open by default
-  const [copied, setCopied] = useState(false);
-
+export default function SchemaCard({ schemaResult, index, focusType = null }) {
   const { type, label, description, impact, schema, qaPairs = [], qaSource = 'heuristic' } = schemaResult;
+  const isFocused = Boolean(focusType) && focusType === type;
+
+  // Deep-linked from an audit recommendation ("Fix with Schema Generator →
+  // FAQPage") opens that specific card; otherwise the first card opens.
+  const [isOpen, setIsOpen] = useState(isFocused || (!focusType && index === 0));
+  const [copied, setCopied] = useState(false);
+  const [wrapCode, setWrapCode] = useState(false);
+  const cardRef = useRef(null);
+
+  useEffect(() => {
+    if (isFocused && cardRef.current) {
+      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isFocused]);
+
   const config = TYPE_CONFIG[type] || TYPE_CONFIG.Article;
   const jsonStr = JSON.stringify(schema, null, 2);
   const highlighted = highlightJSON(jsonStr.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'));
@@ -60,7 +73,8 @@ export default function SchemaCard({ schemaResult, index }) {
 
   return (
     <article
-      className="schema-card"
+      ref={cardRef}
+      className={`schema-card ${isFocused ? 'schema-card-focused' : ''}`}
       style={{ animationDelay }}
       aria-expanded={isOpen}
     >
@@ -126,8 +140,20 @@ export default function SchemaCard({ schemaResult, index }) {
       >
         {/* JSON-LD Code with embedded Q&A */}
         <div className="schema-code-wrapper">
+          <div className="schema-code-toolbar">
+            <button
+              type="button"
+              className="schema-wrap-toggle"
+              onClick={(e) => { e.stopPropagation(); setWrapCode(w => !w); }}
+              aria-pressed={wrapCode}
+              title={wrapCode ? 'Disable soft-wrap' : 'Soft-wrap long lines'}
+            >
+              <WrapText size={12} />
+              {wrapCode ? 'Wrap: On' : 'Wrap: Off'}
+            </button>
+          </div>
           <pre
-            className="schema-code"
+            className={`schema-code ${wrapCode ? 'schema-code-wrap' : ''}`}
             dangerouslySetInnerHTML={{ __html: highlighted }}
             aria-label={`${label} JSON-LD schema`}
           />

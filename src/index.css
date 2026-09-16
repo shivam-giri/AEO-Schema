@@ -1061,6 +1061,12 @@ body {
   box-shadow: var(--shadow-glow-sm);
 }
 
+/* Deep-linked from an audit recommendation CTA */
+.schema-card-focused {
+  border-color: var(--accent-primary);
+  box-shadow: var(--shadow-glow-sm);
+}
+
 .schema-card-header {
   display: flex;
   align-items: center;
