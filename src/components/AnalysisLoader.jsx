@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 
 const SCHEMA_STEPS = [
   { id: 'fetch', label: 'Fetching page content…' },
@@ -16,12 +16,24 @@ const AUDIT_STEPS = [
   { id: 'score', label: 'Calculating AEO readiness score…' },
 ];
 
-export default function AnalysisLoader({ step: currentStep, mode = 'schema' }) {
+export default function AnalysisLoader({ step: currentStep, mode = 'schema', onCancel }) {
   const steps = mode === 'schema' ? SCHEMA_STEPS : AUDIT_STEPS;
   const currentIdx = steps.findIndex(s => s.id === currentStep);
 
   return (
     <section className="loader-section" aria-live="polite" aria-label={mode === 'schema' ? 'Generating schemas' : 'Analyzing page'}>
+      {onCancel && (
+        <button
+          type="button"
+          className="loader-cancel-btn"
+          onClick={onCancel}
+          aria-label="Cancel and go back"
+        >
+          <X size={14} />
+          Cancel
+        </button>
+      )}
+
       <div className="loader-orb">
         <div className="loader-orb-inner">
           <Loader2 size={36} />
